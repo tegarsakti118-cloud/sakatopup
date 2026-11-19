@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#17A897" />
+  <title>SakaPay Admin</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#17A897',
+            primaryDark: '#128577',
+            primarySoft: '#E8F6F4'
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="./css/app.css" />
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased selection:bg-primarySoft selection:text-primaryDark">
+
+  <div id="loading-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white">
+    <div class="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 animate-pulse">
+      <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    </div>
+    <p class="mt-4 text-sm font-semibold text-slate-600">Memverifikasi sesi admin...</p>
+  </div>
+
+  <section id="login-view" class="hidden min-h-screen flex flex-col justify-center px-5 py-8 bg-gradient-to-b from-primarySoft/60 via-slate-50 to-slate-100">
+    <div class="w-full max-w-sm mx-auto bg-white rounded-3xl shadow-xl shadow-slate-200/70 border border-slate-100 p-6 sm:p-7">
+      <div class="flex flex-col items-center text-center mb-6">
+        <div class="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-md shadow-primary/25 mb-3">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <h1 class="text-xl font-extrabold tracking-tight text-slate-900">SakaPay Top Up</h1>
+        <span class="mt-1 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primarySoft text-primaryDark">
+          <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+          PORTAL KHUSUS ADMIN
+        </span>
+      </div>
+
+      <form id="login-form" class="space-y-4" novalidate>
+        <div>
+          <label for="login-username" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Username Admin</label>
+          <input id="login-username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required
+            placeholder="Contoh: adminsakapay"
+            class="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50/60 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition" />
+        </div>
+
+        <div>
+          <label for="login-password" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Password</label>
+          <div class="relative">
+            <input id="login-password" type="password" autocomplete="current-password" required
+              placeholder="Masukkan password"
+              class="w-full h-12 pl-4 pr-12 rounded-xl border border-slate-200 bg-slate-50/60 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition" />
+            <button type="button" id="toggle-password" aria-label="Tampilkan password"
+              class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="login-error" class="hidden rounded-xl bg-red-50 border border-red-200 px-3.5 py-2.5 text-xs font-semibold text-red-700"></div>
+
+        <button id="login-submit-btn" type="submit"
+          class="w-full h-12 rounded-xl bg-primary hover:bg-primaryDark active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-primary/25 transition flex items-center justify-center gap-2">
+          <span>Masuk ke Dashboard</span>
+        </button>
+      </form>
+
+      <p class="mt-5 text-center text-[11px] text-slate-400">
+        Akses internal SakaPay • Tidak ada pendaftaran publik
+      </p>
+    </div>
+  </section>
+
+  <div id="app-shell" class="hidden min-h-screen pb-24">
+    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200/80">
+      <div class="max-w-lg mx-auto px-4 h-14 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div class="truncate">
+            <h2 id="topbar-title" class="text-sm font-extrabold text-slate-900 leading-tight truncate">Dashboard Admin</h2>
+            <p class="text-[10px] font-semibold text-primaryDark leading-tight">SakaPay Internal</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <button type="button" id="printer-status-pill"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-600 active:scale-95 transition">
+            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+            <span>Printer 58mm</span>
+          </button>
+
+          <button type="button" id="logout-btn" title="Keluar"
+            class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 flex items-center justify-center transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="main-content" class="max-w-lg mx-auto px-4 pt-4 space-y-4">
+      <section id="page-dashboard" class="space-y-4">
+        <div class="flex items-center justify-between gap-2">
+          <div class="inline-flex p-1 rounded-xl bg-slate-200/70 flex-1">
+            <button type="button" data-period="daily" class="period-btn flex-1 py-2 rounded-lg text-xs font-bold transition bg-white text-primaryDark shadow-sm">Hari Ini</button>
+            <button type="button" data-period="weekly" class="period-btn flex-1 py-2 rounded-lg text-xs font-bold transition text-slate-600">Minggu Ini</button>
+            <button type="button" data-period="monthly" class="period-btn flex-1 py-2 rounded-lg text-xs font-bold transition text-slate-600">Bulan Ini</button>
+          </div>
+          <button type="button" id="dash-refresh-btn" aria-label="Segarkan data"
+            class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 active:scale-95 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
+
+        <p id="dash-period-label" class="text-[11px] font-medium text-slate-500 px-0.5">Memuat periode WIB...</p>
+
+        <div class="rounded-2xl bg-gradient-to-br from-primary to-primaryDark text-white p-5 shadow-lg shadow-primary/20">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-white/80">Omzet Bersih (Net)</span>
+            <span class="px-2 py-0.5 rounded-full bg-white/15 text-[10px] font-bold">WIB</span>
+          </div>
+          <p id="net-omzet" class="mt-1 text-2xl font-extrabold tabular-nums">Rp 0</p>
+          <div class="mt-4 pt-3.5 border-t border-white/20 grid grid-cols-2 gap-3">
+            <div>
+              <p class="text-[11px] text-white/75 font-medium">Keuntungan Bersih</p>
+              <p id="net-profit" class="text-base font-extrabold tabular-nums">Rp 0</p>
+            </div>
+            <div>
+              <p class="text-[11px] text-white/75 font-medium">Total Modal Bersih</p>
+              <p id="net-modal" class="text-base font-bold tabular-nums text-white/95">Rp 0</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Rincian Gross & Refund</h3>
+            <span id="gross-count" class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">0 Berhasil</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center bg-slate-50 rounded-xl p-2.5">
+            <div>
+              <p class="text-[10px] text-slate-500 font-semibold">Gross Omzet</p>
+              <p id="gross-omzet" class="text-xs font-bold tabular-nums text-slate-800 mt-0.5">Rp 0</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-slate-500 font-semibold">Gross Modal</p>
+              <p id="gross-modal" class="text-xs font-bold tabular-nums text-slate-800 mt-0.5">Rp 0</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-slate-500 font-semibold">Gross Profit</p>
+              <p id="gross-profit" class="text-xs font-bold tabular-nums text-emerald-700 mt-0.5">Rp 0</p>
+            </div>
+          </div>
+          <div class="pt-1 border-t border-slate-100 text-xs space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-500 font-medium">Nilai Refund (<span id="refund-count-detail">0</span> trx)</span>
+              <span id="refund-omzet" class="font-bold tabular-nums text-purple-700">Rp 0</span>
+            </div>
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-500">Modal Kembali dari Supplier</span>
+              <span id="refund-modal-recovered" class="font-semibold tabular-nums text-slate-700">Rp 0</span>
+            </div>
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-500">Modal Hangus (Rugi Riil)</span>
+              <span id="refund-modal-lost" class="font-bold tabular-nums text-red-600">Rp 0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2.5">
+          <div class="bg-amber-50 border border-amber-200/70 rounded-2xl p-3">
+            <p class="text-[10px] font-bold text-amber-800 uppercase">Menunggu</p>
+            <p id="stat-active-menunggu" class="text-xl font-extrabold text-amber-900 tabular-nums mt-0.5">0</p>
+            <p class="text-[9px] text-amber-700/80">Antrean aktif</p>
+          </div>
+          <div class="bg-blue-50 border border-blue-200/70 rounded-2xl p-3">
+            <p class="text-[10px] font-bold text-blue-800 uppercase">Diproses</p>
+            <p id="stat-active-diproses" class="text-xl font-extrabold text-blue-900 tabular-nums mt-0.5">0</p>
+            <p class="text-[9px] text-blue-700/80">Sedang jalan</p>
+          </div>
+          <div class="bg-white border border-slate-200/80 rounded-2xl p-3">
+            <p class="text-[10px] font-bold text-slate-500 uppercase">Order Masuk</p>
+            <p id="stat-created" class="text-xl font-extrabold text-slate-900 tabular-nums mt-0.5">0</p>
+            <p class="text-[9px] text-slate-400">Sesuai filter</p>
+          </div>
+          <div class="bg-emerald-50 border border-emerald-200/70 rounded-2xl p-3">
+            <p class="text-[10px] font-bold text-emerald-800 uppercase">Berhasil</p>
+            <p id="stat-berhasil" class="text-xl font-extrabold text-emerald-900 tabular-nums mt-0.5">0</p>
+          </div>
+          <div class="bg-red-50 border border-red-200/70 rounded-2xl p-3">
+            <p class="text-[10px] font-bold text-red-800 uppercase">Gagal</p>
+            <p id="stat-gagal" class="text-xl font-extrabold text-red-900 tabular-nums mt-0.5">0</p>
+          </div>
+          <div class="bg-purple-50 border border-purple-200/70 rounded-2xl p-3">
+            <p class="text-[10px] font-bold text-purple-800 uppercase">Refund</p>
+            <p id="stat-refund" class="text-xl font-extrabold text-purple-900 tabular-nums mt-0.5">0</p>
+          </div>
+        </div>
+
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between px-0.5">
+            <h3 class="text-sm font-extrabold text-slate-900">Transaksi Terbaru</h3>
+            <span class="text-[11px] font-semibold text-slate-400">10 Terakhir</span>
+          </div>
+          <div id="recent-transactions-list" class="space-y-2.5">
+            <div class="bg-white rounded-2xl border border-slate-200/80 p-4 text-center text-xs text-slate-400">
+              Memuat transaksi terbaru...
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-orders" class="hidden">
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 text-center space-y-2">
+          <p class="text-sm font-bold text-slate-800">Riwayat & Laporan Transaksi</p>
+          <p class="text-xs text-slate-500">Fitur filter tanggal, detail transaksi, ekspor CSV, dan cetak struk akan dibangun di <strong>FASE 6 & FASE 7</strong>.</p>
+        </div>
+      </section>
+
+      <section id="page-new-order" class="hidden">
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 text-center space-y-2">
+          <p class="text-sm font-bold text-slate-800">Input Pesanan Pelanggan</p>
+          <p class="text-xs text-slate-500">Form buat pesanan dengan database pelanggan & deteksi duplikat akan dibangun di <strong>FASE 6</strong>.</p>
+        </div>
+      </section>
+
+      <section id="page-catalog" class="hidden">
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 text-center space-y-2">
+          <p class="text-sm font-bold text-slate-800">Katalog Game, Produk & Pelanggan</p>
+          <p class="text-xs text-slate-500">Manajemen game, harga modal/jual produk, dan database pelanggan akan dibangun di <strong>FASE 5</strong>.</p>
+        </div>
+      </section>
+
+      <section id="page-settings" class="hidden space-y-4">
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
+          <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Akun Admin Aktif</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <p id="settings-admin-username" class="text-sm font-bold text-slate-900">-</p>
+              <p class="text-[11px] text-emerald-700 font-semibold">Terverifikasi Admin Whitelist</p>
+            </div>
+            <button type="button" id="settings-logout-btn"
+              class="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold transition">
+              Keluar
+            </button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 text-center space-y-1.5">
+          <p class="text-sm font-bold text-slate-800">Printer Thermal 58mm & Profil Usaha</p>
+          <p class="text-xs text-slate-500">Pengaturan identitas usaha, backup CSV, & koneksi Bluetooth ESC/POS akan dibangun di <strong>FASE 7 & FASE 8</strong>.</p>
+        </div>
+      </section>
+    </main>
+
+    <nav class="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t border-slate-200 safe-bottom">
+      <div class="max-w-lg mx-auto px-2 h-16 grid grid-cols-5 items-center">
+        <button type="button" data-page="dashboard" class="nav-btn flex flex-col items-center justify-center gap-0.5 py-1 text-primary">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+          <span class="text-[10px] font-bold">Beranda</span>
+        </button>
+        <button type="button" data-page="orders" class="nav-btn flex flex-col items-center justify-center gap-0.5 py-1 text-slate-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+          <span class="text-[10px] font-semibold">Order</span>
+        </button>
+        <button type="button" data-page="new-order" class="nav-btn flex flex-col items-center justify-center -mt-4">
+          <span class="w-12 h-12 rounded-2xl bg-primary text-white shadow-lg shadow-primary/35 flex items-center justify-center active:scale-95 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+          </span>
+          <span class="text-[10px] font-bold text-primaryDark mt-0.5">Buat</span>
+        </button>
+        <button type="button" data-page="catalog" class="nav-btn flex flex-col items-center justify-center gap-0.5 py-1 text-slate-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+          <span class="text-[10px] font-semibold">Katalog</span>
+        </button>
+        <button type="button" data-page="settings" class="nav-btn flex flex-col items-center justify-center gap-0.5 py-1 text-slate-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+          <span class="text-[10px] font-semibold">Set</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <div id="toast-container" class="fixed top-16 inset-x-4 z-50 max-w-md mx-auto space-y-2 pointer-events-none"></div>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

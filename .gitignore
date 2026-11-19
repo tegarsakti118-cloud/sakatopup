@@ -1,0 +1,8 @@
+.DS_Store
+*.keystore
+*.jks
+*.apk
+android-wrapper/.gradle/
+android-wrapper/build/
+android-wrapper/app/build/
+android-wrapper/local.properties

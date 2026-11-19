@@ -1,0 +1,7 @@
+* { -webkit-tap-highlight-color: transparent; }
+.tabular-nums { font-variant-numeric: tabular-nums; }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+@keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.animate-spin-fast { animation: spinSlow 0.7s linear infinite; }
