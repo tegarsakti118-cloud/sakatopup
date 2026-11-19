@@ -2,6 +2,7 @@ import { supabase } from './supabase.js';
 import { escapeHtml, formatIDR, formatWIB, getStatusBadge, showToast } from './utils.js';
 
 let activePeriod = 'daily';
+let onOpenTransactionCb = null;
 
 function setText(id, text) {
   const el = document.getElementById(id);
@@ -58,7 +59,7 @@ function renderRecentTransactions(rows) {
     list.innerHTML = `
       <div class="bg-white rounded-2xl border border-slate-200/80 p-5 text-center space-y-1">
         <p class="text-xs font-bold text-slate-600">Belum ada transaksi tercatat</p>
-        <p class="text-[11px] text-slate-400">Siap menerima input pesanan di Fase 6 nanti.</p>
+        <p class="text-[11px] text-slate-400">Ketuk tombol + Buat di bawah untuk mencatat pesanan pertama.</p>
       </div>`;
     return;
   }
@@ -67,7 +68,8 @@ function renderRecentTransactions(rows) {
     const badgeClass = getStatusBadge(trx.status);
     const zoneText = trx.target_zone_id ? ` (${escapeHtml(trx.target_zone_id)})` : '';
     return `
-      <div class="bg-white rounded-2xl border border-slate-200/80 p-3.5 space-y-1.5 shadow-sm">
+      <button type="button" data-dash-trx="${trx.id}"
+        class="w-full text-left bg-white rounded-2xl border border-slate-200/80 p-3.5 space-y-1.5 shadow-sm active:scale-[0.99] transition">
         <div class="flex items-center justify-between gap-2">
           <span class="font-mono text-[11px] font-bold text-slate-500">${escapeHtml(trx.invoice_code)}</span>
           <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeClass}">${escapeHtml(trx.status)}</span>
@@ -82,9 +84,18 @@ function renderRecentTransactions(rows) {
             <p class="text-[10px] font-bold tabular-nums text-emerald-700">+${formatIDR(trx.profit_snapshot)}</p>
           </div>
         </div>
-        <p class="text-[10px] text-slate-400">${formatWIB(trx.created_at)}</p>
-      </div>`;
+        <div class="flex items-center justify-between text-[10px] text-slate-400">
+          <span>${formatWIB(trx.created_at)}</span>
+          <span class="font-semibold text-primaryDark">Detail →</span>
+        </div>
+      </button>`;
   }).join('');
+
+  list.querySelectorAll('[data-dash-trx]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (typeof onOpenTransactionCb === 'function') onOpenTransactionCb(btn.dataset.dashTrx);
+    });
+  });
 }
 
 export async function loadDashboard(period = activePeriod) {
@@ -114,7 +125,8 @@ export async function loadDashboard(period = activePeriod) {
   }
 }
 
-export function initDashboardUI() {
+export function initDashboardUI({ onOpenTransaction } = {}) {
+  onOpenTransactionCb = onOpenTransaction || null;
   document.querySelectorAll('.period-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const p = btn.dataset.period || 'daily';

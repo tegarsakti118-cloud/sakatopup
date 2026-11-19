@@ -2,6 +2,8 @@ import { supabase } from './supabase.js';
 import { checkInitialSession, initAuthUI, logoutAdmin } from './auth.js';
 import { initDashboardUI, loadDashboard } from './dashboard.js';
 import { initCatalogUI, loadCatalog } from './catalog.js';
+import { initOrderFormUI, loadOrderForm } from './order-form.js';
+import { initOrdersListUI, loadOrdersList, openTransactionDetail } from './orders-list.js';
 import { showToast } from './utils.js';
 
 const PAGE_TITLES = {
@@ -31,9 +33,10 @@ function navigateTo(pageKey) {
     btn.classList.toggle('text-slate-400', !isActive);
   });
 
-  if (pageKey === 'catalog') {
-    loadCatalog();
-  }
+  if (pageKey === 'dashboard') loadDashboard();
+  else if (pageKey === 'orders') loadOrdersList();
+  else if (pageKey === 'new-order') loadOrderForm();
+  else if (pageKey === 'catalog') loadCatalog();
 }
 
 function enterApp(admin) {
@@ -41,7 +44,6 @@ function enterApp(admin) {
   if (usernameEl) usernameEl.textContent = admin?.username || 'adminsakapay';
   showScreen('app');
   navigateTo('dashboard');
-  loadDashboard('daily');
 }
 
 async function handleLogout() {
@@ -53,8 +55,22 @@ async function handleLogout() {
 
 async function bootstrap() {
   initAuthUI(enterApp);
-  initDashboardUI();
+  initDashboardUI({ onOpenTransaction: (id) => openTransactionDetail(id) });
   initCatalogUI();
+  initOrderFormUI({
+    onOrderCreated: (trx) => {
+      navigateTo('orders');
+      openTransactionDetail(trx.id);
+    },
+    onGoCatalog: () => navigateTo('catalog')
+  });
+  initOrdersListUI({ onChanged: () => loadDashboard() });
+
+  document.getElementById('page-catalog')?.addEventListener('click', (e) => {
+    if (e.target.closest('[data-action="quick-order-customer"]')) {
+      setTimeout(() => navigateTo('new-order'), 30);
+    }
+  });
 
   document.querySelectorAll('.nav-btn').forEach((btn) => {
     btn.addEventListener('click', () => navigateTo(btn.dataset.page));
