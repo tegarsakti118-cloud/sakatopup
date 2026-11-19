@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js';
 import { checkInitialSession, initAuthUI, logoutAdmin } from './auth.js';
 import { initDashboardUI, loadDashboard } from './dashboard.js';
+import { initCatalogUI, loadCatalog } from './catalog.js';
 import { showToast } from './utils.js';
 
 const PAGE_TITLES = {
@@ -29,6 +30,10 @@ function navigateTo(pageKey) {
     btn.classList.toggle('text-primary', isActive);
     btn.classList.toggle('text-slate-400', !isActive);
   });
+
+  if (pageKey === 'catalog') {
+    loadCatalog();
+  }
 }
 
 function enterApp(admin) {
@@ -49,6 +54,7 @@ async function handleLogout() {
 async function bootstrap() {
   initAuthUI(enterApp);
   initDashboardUI();
+  initCatalogUI();
 
   document.querySelectorAll('.nav-btn').forEach((btn) => {
     btn.addEventListener('click', () => navigateTo(btn.dataset.page));
