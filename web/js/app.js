@@ -4,15 +4,30 @@ import { initDashboardUI, loadDashboard } from './dashboard.js';
 import { initCatalogUI, loadCatalog } from './catalog.js';
 import { initOrderFormUI, loadOrderForm } from './order-form.js';
 import { initOrdersListUI, loadOrdersList, openTransactionDetail } from './orders-list.js';
+import { initSettingsUI, loadSettings } from './settings.js';
+import { getPrinterConnectionState } from './receipt.js';
 import { showToast } from './utils.js';
 
 const PAGE_TITLES = {
   dashboard: 'Dashboard Admin',
-  orders: 'Riwayat Transaksi',
+  orders: 'Riwayat & Laporan',
   'new-order': 'Buat Pesanan',
   catalog: 'Katalog & Pelanggan',
-  settings: 'Pengaturan'
+  settings: 'Pengaturan & Printer'
 };
+
+function updatePrinterPill() {
+  const pill = document.getElementById('printer-status-pill');
+  if (!pill) return;
+  const conn = getPrinterConnectionState();
+  if (conn.connected) {
+    pill.className = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-800 active:scale-95 transition';
+    pill.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>${(conn.printerName || 'Printer OK').slice(0, 14)}</span>`;
+  } else {
+    pill.className = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-600 active:scale-95 transition';
+    pill.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Printer 58mm</span>';
+  }
+}
 
 function showScreen(screenName) {
   document.getElementById('loading-screen').classList.add('hidden');
@@ -37,11 +52,12 @@ function navigateTo(pageKey) {
   else if (pageKey === 'orders') loadOrdersList();
   else if (pageKey === 'new-order') loadOrderForm();
   else if (pageKey === 'catalog') loadCatalog();
+  else if (pageKey === 'settings') loadSettings();
 }
 
 function enterApp(admin) {
-  const usernameEl = document.getElementById('settings-admin-username');
-  if (usernameEl) usernameEl.textContent = admin?.username || 'adminsakapay';
+  window.__sakapayAdminUsername = admin?.username || 'adminsakapay';
+  updatePrinterPill();
   showScreen('app');
   navigateTo('dashboard');
 }
@@ -65,6 +81,10 @@ async function bootstrap() {
     onGoCatalog: () => navigateTo('catalog')
   });
   initOrdersListUI({ onChanged: () => loadDashboard() });
+  initSettingsUI({
+    onPrinterUpdated: updatePrinterPill,
+    onLogout: handleLogout
+  });
 
   document.getElementById('page-catalog')?.addEventListener('click', (e) => {
     if (e.target.closest('[data-action="quick-order-customer"]')) {
@@ -76,10 +96,7 @@ async function bootstrap() {
     btn.addEventListener('click', () => navigateTo(btn.dataset.page));
   });
   document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
-  document.getElementById('settings-logout-btn')?.addEventListener('click', handleLogout);
-  document.getElementById('printer-status-pill')?.addEventListener('click', () => {
-    showToast('Koneksi Printer 58mm akan aktif di Fase 7 & 8.', 'info');
-  });
+  document.getElementById('printer-status-pill')?.addEventListener('click', () => navigateTo('settings'));
 
   const sessionCheck = await checkInitialSession();
   if (sessionCheck.ok) {

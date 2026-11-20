@@ -58,6 +58,16 @@ export async function fetchOrderFormData() {
   };
 }
 
+export async function fetchFilterGames() {
+  if (!supabase) return [];
+  const { data } = await supabase
+    .from('games')
+    .select('id, name')
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true });
+  return data || [];
+}
+
 export async function createOrder(params) {
   if (!supabase) throw new Error('Supabase belum siap.');
 
@@ -91,19 +101,35 @@ export async function createOrder(params) {
   return data;
 }
 
-export async function fetchTransactions({ search = '', status = 'all', limit = 60 } = {}) {
+export async function fetchTransactions({
+  search = '',
+  status = 'all',
+  gameId = 'all',
+  startDate = '',
+  endDate = '',
+  limit = 200
+} = {}) {
   if (!supabase) throw new Error('Supabase belum siap.');
 
   let query = supabase
     .from('transactions')
     .select(
-      'id, invoice_code, customer_name_snapshot, customer_wa_snapshot, game_name_snapshot, product_name_snapshot, nominal_snapshot, target_user_id, target_zone_id, base_price_snapshot, sell_price_snapshot, profit_snapshot, status, status_reason, supplier_code, supplier_ref_id, notes, print_count, last_printed_at, created_at, completed_at, failed_at, refunded_at, refund_modal_returned'
+      'id, invoice_code, customer_name_snapshot, customer_wa_snapshot, game_id, game_name_snapshot, product_name_snapshot, nominal_snapshot, target_user_id, target_zone_id, base_price_snapshot, sell_price_snapshot, profit_snapshot, status, status_reason, supplier_code, supplier_ref_id, notes, print_count, last_printed_at, created_at, completed_at, failed_at, refunded_at, refund_modal_returned'
     )
     .order('created_at', { ascending: false })
     .limit(limit);
 
   if (status && status !== 'all') {
     query = query.eq('status', status);
+  }
+  if (gameId && gameId !== 'all') {
+    query = query.eq('game_id', gameId);
+  }
+  if (startDate) {
+    query = query.gte('created_at', new Date(`${startDate}T00:00:00+07:00`).toISOString());
+  }
+  if (endDate) {
+    query = query.lte('created_at', new Date(`${endDate}T23:59:59.999+07:00`).toISOString());
   }
 
   const cleanSearch = String(search || '').replace(/[,()%*]/g, '').trim();
@@ -121,12 +147,8 @@ export async function fetchTransactions({ search = '', status = 'all', limit = 6
 export async function fetchTransactionDetail(id) {
   if (!supabase) throw new Error('Supabase belum siap.');
 
-  const [trxRes, logsRes, printRes, supRes] = await Promise.all([
-    supabase
-      .from('transactions')
-      .select('*')
-      .eq('id', id)
-      .single(),
+  const [trxRes, logsRes, printRes, supRes, bizRes] = await Promise.all([
+    supabase.from('transactions').select('*').eq('id', id).single(),
     supabase
       .from('transaction_logs')
       .select('id, action_type, previous_status, new_status, reason, metadata, provider_response, created_at')
@@ -137,10 +159,8 @@ export async function fetchTransactionDetail(id) {
       .select('id, print_sequence, receipt_format, print_method, printer_name, printed_at')
       .eq('transaction_id', id)
       .order('printed_at', { ascending: false }),
-    supabase
-      .from('supplier_providers')
-      .select('code, name, mode, is_active')
-      .eq('is_active', true)
+    supabase.from('supplier_providers').select('code, name, mode, is_active').eq('is_active', true),
+    supabase.from('business_settings').select('default_receipt_format').eq('id', 1).maybeSingle()
   ]);
 
   if (trxRes.error) throw trxRes.error;
@@ -151,7 +171,8 @@ export async function fetchTransactionDetail(id) {
     transaction: trxRes.data,
     logs: logsRes.data || [],
     printLogs: printRes.data || [],
-    suppliers: supRes.data || []
+    suppliers: supRes.data || [],
+    defaultFormat: bizRes.data?.default_receipt_format || 'lengkap'
   };
 }
 
@@ -163,7 +184,6 @@ export async function updateTransactionStatus({
   supplierRefId = null
 }) {
   if (!supabase) throw new Error('Supabase belum siap.');
-
   const { data, error } = await supabase.rpc('update_transaction_status', {
     p_transaction_id: id,
     p_new_status: newStatus,
@@ -178,7 +198,6 @@ export async function updateTransactionStatus({
 
 export async function correctTransactionRefund({ id, reason, modalReturned }) {
   if (!supabase) throw new Error('Supabase belum siap.');
-
   const { data, error } = await supabase.rpc('correct_transaction_refund', {
     p_transaction_id: id,
     p_reason: reason,
@@ -190,15 +209,10 @@ export async function correctTransactionRefund({ id, reason, modalReturned }) {
 
 export async function invokeDigiflazzOrder(transactionId) {
   if (!supabase) throw new Error('Supabase belum siap.');
-
   const { data, error } = await supabase.functions.invoke('digiflazz-order', {
     body: { transaction_id: transactionId }
   });
-  if (error) {
-    throw new Error(error.message || 'Edge Function digiflazz-order belum tersedia/terkonfigurasi.');
-  }
-  if (data?.error) {
-    throw new Error(data.error);
-  }
+  if (error) throw new Error(error.message || 'Edge Function digiflazz-order belum tersedia/terkonfigurasi.');
+  if (data?.error) throw new Error(data.error);
   return data;
 }
