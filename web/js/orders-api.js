@@ -208,11 +208,20 @@ export async function correctTransactionRefund({ id, reason, modalReturned }) {
 }
 
 export async function invokeDigiflazzOrder(transactionId) {
-  if (!supabase) throw new Error('Supabase belum siap.');
-  const { data, error } = await supabase.functions.invoke('digiflazz-order', {
+  if (!supabase) throw new Error("Supabase belum siap.");
+  const { data, error } = await supabase.functions.invoke("digiflazz-order", {
     body: { transaction_id: transactionId }
   });
-  if (error) throw new Error(error.message || 'Edge Function digiflazz-order belum tersedia/terkonfigurasi.');
+  if (error) {
+    let detail = error.message || "Gagal memanggil Edge Function.";
+    try {
+      if (error.context && typeof error.context.json === "function") {
+        const j = await error.context.json();
+        if (j?.error) detail = j.error;
+      }
+    } catch {}
+    throw new Error(detail);
+  }
   if (data?.error) throw new Error(data.error);
   return data;
 }
