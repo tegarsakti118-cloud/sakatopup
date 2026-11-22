@@ -4,7 +4,11 @@ import {
   savePrinterConfig,
   isAndroidBridgeReady,
   getPrinterConnectionState,
-  buildThermalText
+  buildThermalText,
+  getReceiptLogo,
+  saveReceiptLogo,
+  clearReceiptLogo,
+  ensurePrinterConnected
 } from './receipt.js';
 import { escapeHtml, showToast } from './utils.js';
 
@@ -12,10 +16,97 @@ const settingsState = {
   business: null,
   suppliers: [],
   scannedDevices: [],
+  logoFile: null,
   loading: false,
   onPrinterUpdated: null,
   onLogout: null
 };
+
+const LOGO_MAX_W = 320; // titik, kelipatan 8 (aman untuk kertas 58mm)
+const LOGO_MAX_H = 160;
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('File gambar tidak bisa dibaca.'));
+    };
+    img.src = url;
+  });
+}
+
+// gray: Float32Array berisi 0..255. Mengembalikan Uint8Array 0 (hitam) / 255 (putih).
+function grayToMono(gray, w, h, mode) {
+  const g = Float32Array.from(gray);
+  const out = new Uint8Array(w * h);
+  if (mode === 'logo') {
+    for (let i = 0; i < g.length; i++) out[i] = g[i] < 160 ? 0 : 255;
+    return out;
+  }
+  // Floyd-Steinberg dithering: hasil foto lebih halus di printer thermal
+  for (let i = 0; i < g.length; i++) g[i] = Math.max(0, Math.min(255, (g[i] - 128) * 1.15 + 128));
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const old = g[i];
+      const nw = old < 128 ? 0 : 255;
+      out[i] = nw;
+      const err = old - nw;
+      if (x + 1 < w) g[i + 1] += (err * 7) / 16;
+      if (y + 1 < h) {
+        if (x > 0) g[i + w - 1] += (err * 3) / 16;
+        g[i + w] += (err * 5) / 16;
+        if (x + 1 < w) g[i + w + 1] += err / 16;
+      }
+    }
+  }
+  return out;
+}
+
+function imageToMonoPng(img, mode) {
+  const scale = Math.min(LOGO_MAX_W / img.naturalWidth, LOGO_MAX_H / img.naturalHeight, 4);
+  const w = Math.min(LOGO_MAX_W, Math.max(8, Math.ceil(Math.round(img.naturalWidth * scale) / 8) * 8));
+  const h = Math.max(1, Math.round(img.naturalHeight * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const gray = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const r = imgData.data[i * 4];
+    const gg = imgData.data[i * 4 + 1];
+    const b = imgData.data[i * 4 + 2];
+    gray[i] = 0.299 * r + 0.587 * gg + 0.114 * b;
+  }
+  const mono = grayToMono(gray, w, h, mode);
+  for (let i = 0; i < w * h; i++) {
+    const v = mono[i];
+    imgData.data[i * 4] = v;
+    imgData.data[i * 4 + 1] = v;
+    imgData.data[i * 4 + 2] = v;
+    imgData.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(imgData, 0, 0);
+  return { dataUrl: canvas.toDataURL('image/png'), width: w, height: h };
+}
+
+async function applyLogoFile(file, mode) {
+  const img = await loadImageFromFile(file);
+  const res = imageToMonoPng(img, mode);
+  saveReceiptLogo({ ...res, mode });
+}
 
 export function sanitizeCsvCell(val) {
   let s = String(val ?? '').replace(/\r?\n/g, ' ');
@@ -90,6 +181,7 @@ function renderSettingsPage() {
     default_receipt_format: 'lengkap'
   };
   const cfg = getPrinterConfig();
+  const receiptLogo = getReceiptLogo();
   const conn = getPrinterConnectionState();
   const adminUser = document.getElementById('settings-admin-username')?.dataset.user || window.__sakapayAdminUsername || 'adminsakapay';
 
@@ -179,6 +271,45 @@ function renderSettingsPage() {
         </div>
       </div>
 
+      <!-- 1b. LOGO STRUK THERMAL -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-3 shadow-sm">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Logo Struk Thermal</h3>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${receiptLogo ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}">${receiptLogo ? 'Logo Kustom' : 'Logo Bawaan'}</span>
+        </div>
+
+        <div class="rounded-xl bg-slate-100 p-3 flex justify-center">
+          <div class="bg-white border border-slate-300 px-4 py-3 rounded-sm flex items-center justify-center">
+            ${
+              receiptLogo
+                ? `<img src="${escapeHtml(receiptLogo.dataUrl)}" alt="Logo struk" class="max-w-[240px] h-auto" style="image-rendering:pixelated" />`
+                : `<div class="flex items-center gap-2">
+                     <svg class="w-10 h-10" viewBox="0 0 108 108" aria-hidden="true">
+                       <circle cx="54" cy="54" r="38" fill="none" stroke="#0f172a" stroke-width="9" />
+                       <path d="M58,34 L42,57 L52,57 L48,75 L67,50 L57,50 Z" fill="#0f172a" transform="translate(54 54) scale(1.15) translate(-54.5 -54.5)" />
+                     </svg>
+                     <span class="font-extrabold text-lg tracking-wide text-slate-900">SAKAPAY</span>
+                   </div>`
+            }
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" id="set-logo-pick" class="h-11 rounded-xl bg-primary hover:bg-primaryDark text-white text-xs font-bold shadow-sm">Upload Foto Logo</button>
+          <button type="button" id="set-logo-clear" ${receiptLogo ? '' : 'disabled'} class="h-11 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-800 text-xs font-bold">Pakai Logo Bawaan</button>
+        </div>
+        <input id="set-logo-file" type="file" accept="image/*" class="hidden" />
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">Gaya Cetak</label>
+          <select id="set-logo-mode" class="w-full h-10 px-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white">
+            <option value="foto" ${(receiptLogo?.mode || 'foto') === 'foto' ? 'selected' : ''}>Foto (halus, bertitik)</option>
+            <option value="logo" ${receiptLogo?.mode === 'logo' ? 'selected' : ''}>Logo (tegas, hitam-putih)</option>
+          </select>
+        </div>
+        <p class="text-[10px] text-slate-400">Foto otomatis diubah jadi hitam-putih agar bagus di printer thermal. Logo disimpan di HP ini dan tampil di struk bila "Cetak Logo SakaPay" aktif.</p>
+      </div>
+
       <!-- 2. IDENTITAS USAHA DI STRUK -->
       <form id="set-biz-form" class="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-3 shadow-sm">
         <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Identitas Usaha (Untuk Struk)</h3>
@@ -250,6 +381,50 @@ function renderSettingsPage() {
 }
 
 function bindSettingsEvents() {
+  const logoFileEl = document.getElementById('set-logo-file');
+  document.getElementById('set-logo-pick')?.addEventListener('click', () => logoFileEl?.click());
+  logoFileEl?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showToast('Pilih file gambar (JPG/PNG).', 'warning');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      showToast('Ukuran foto maksimal 8 MB.', 'warning');
+      return;
+    }
+    try {
+      const mode = document.getElementById('set-logo-mode')?.value || 'foto';
+      await applyLogoFile(file, mode);
+      settingsState.logoFile = file;
+      showToast('Logo struk disimpan.', 'success');
+      renderSettingsPage();
+    } catch (err) {
+      showToast(err?.message || 'Gagal memproses logo (penyimpanan HP mungkin penuh).', 'error');
+    }
+  });
+  document.getElementById('set-logo-mode')?.addEventListener('change', async (e) => {
+    if (!settingsState.logoFile) {
+      showToast('Upload ulang foto untuk memakai gaya cetak ini.', 'info');
+      renderSettingsPage();
+      return;
+    }
+    try {
+      await applyLogoFile(settingsState.logoFile, e.target.value);
+      renderSettingsPage();
+    } catch (err) {
+      showToast(err?.message || 'Gagal memproses logo.', 'error');
+    }
+  });
+  document.getElementById('set-logo-clear')?.addEventListener('click', () => {
+    clearReceiptLogo();
+    settingsState.logoFile = null;
+    showToast('Kembali memakai logo bawaan.', 'info');
+    renderSettingsPage();
+  });
+
   document.getElementById('set-pr-font')?.addEventListener('change', (e) => {
     savePrinterConfig({ fontSize: e.target.value });
     showToast('Ukuran font printer disimpan.', 'success');
@@ -303,13 +478,13 @@ function bindSettingsEvents() {
     });
   });
 
-  document.getElementById('set-test-print')?.addEventListener('click', () => {
+  document.getElementById('set-test-print')?.addEventListener('click', async () => {
     if (!isAndroidBridgeReady() || typeof window.SakaPayAndroid.printThermal !== 'function') {
       showToast('Tes cetak fisik ESC/POS aktif setelah APK Android dibuat (Fase 8).', 'warning');
       return;
     }
     const conn = getPrinterConnectionState();
-    if (!conn.connected) {
+    if (!conn.connected && !(await ensurePrinterConnected())) {
       showToast('Printer belum terhubung. Pilih & hubungkan printer dulu.', 'warning');
       return;
     }
@@ -339,6 +514,7 @@ function bindSettingsEvents() {
           fontSize: cfg.fontSize,
           feedLines: cfg.feedLines,
           printLogo: cfg.printLogo,
+          logoImageBase64: getReceiptLogo()?.dataUrl || '',
           autoCut: cfg.autoCut
         })
       );

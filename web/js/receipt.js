@@ -36,6 +36,32 @@ export function savePrinterConfig(cfg) {
   return next;
 }
 
+const RECEIPT_LOGO_KEY = 'sakapay_receipt_logo_v1';
+
+export function getReceiptLogo() {
+  try {
+    const raw = localStorage.getItem(RECEIPT_LOGO_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.dataUrl === 'string' && parsed.dataUrl.startsWith('data:image/')) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveReceiptLogo(logo) {
+  localStorage.setItem(RECEIPT_LOGO_KEY, JSON.stringify(logo));
+}
+
+export function clearReceiptLogo() {
+  try {
+    localStorage.removeItem(RECEIPT_LOGO_KEY);
+  } catch {
+    // abaikan
+  }
+}
+
 export function isAndroidBridgeReady() {
   return typeof window !== 'undefined' && typeof window.SakaPayAndroid !== 'undefined';
 }
@@ -56,6 +82,28 @@ export function getPrinterConnectionState() {
     }
   }
   return { available: false, connected: false, printerName: cfg.printerName, macAddress: cfg.macAddress };
+}
+
+// Mencoba menyambung otomatis ke printer yang terakhir dipakai. true bila sudah/berhasil terhubung.
+export async function ensurePrinterConnected() {
+  const conn = getPrinterConnectionState();
+  if (conn.connected) return true;
+  const cfg = getPrinterConfig();
+  const mac = conn.macAddress || cfg.macAddress;
+  if (!mac || !isAndroidBridgeReady() || typeof window.SakaPayAndroid.connectPrinter !== 'function') return false;
+
+  showToast('Menghubungkan ke printer terakhir...', 'info');
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  try {
+    const raw = window.SakaPayAndroid.connectPrinter(mac);
+    const res = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!res?.ok) return false;
+    savePrinterConfig({ macAddress: mac, printerName: res.printerName || conn.printerName || cfg.printerName || '' });
+    window.dispatchEvent(new CustomEvent('sakapay:printer-updated'));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function fetchReceiptBundle(transactionId) {
@@ -454,7 +502,7 @@ export async function printThermal58mm(transactionId, format = 'lengkap', onLogg
     showToast('Cetak Bluetooth 58mm membutuhkan Android APK (dibangun di Fase 8). Gunakan Preview / Simpan PDF sementara.', 'warning');
     return false;
   }
-  if (!conn.connected) {
+  if (!conn.connected && !(await ensurePrinterConnected())) {
     showToast('Printer Bluetooth belum terhubung. Pilih printer dulu.', 'warning');
     openPrinterScanModal({
       onConnected: async () => {
@@ -485,6 +533,7 @@ export async function printThermal58mm(transactionId, format = 'lengkap', onLogg
     fontSize: cfg.fontSize,
     feedLines: cfg.feedLines,
     printLogo: cfg.printLogo,
+    logoImageBase64: getReceiptLogo()?.dataUrl || '',
     autoCut: cfg.autoCut,
     receipt
   };
@@ -637,6 +686,7 @@ export async function openReceiptPreviewModal(transactionId, onLogged = null) {
     const renderModal = () => {
       const thermalText = buildThermalText(receipt, business, format, cfg.fontSize);
       const printLabel = receipt.print_count > 0 ? 'Cetak Ulang 58mm' : 'Cetak Struk 58mm';
+      const customLogo = getReceiptLogo();
 
       let bodyPreview = '';
       if (viewMode === 'thermal') {
@@ -645,7 +695,9 @@ export async function openReceiptPreviewModal(transactionId, onLogged = null) {
             <div class="bg-white shadow-md px-3.5 py-4 rounded-sm border border-slate-300 text-slate-900">
               ${
                 cfg.printLogo
-                  ? `<div class="text-center mb-1"><span class="inline-block px-2 py-0.5 border-2 border-slate-900 font-mono text-[11px] font-extrabold tracking-widest">SAKAPAY</span></div>`
+                  ? customLogo
+                    ? `<div class="text-center mb-1"><img src="${escapeHtml(customLogo.dataUrl)}" alt="Logo" class="inline-block max-w-[200px] h-auto" style="image-rendering:pixelated" /></div>`
+                    : `<div class="text-center mb-1"><span class="inline-block px-2 py-0.5 border-2 border-slate-900 font-mono text-[11px] font-extrabold tracking-widest">SAKAPAY</span></div>`
                   : ''
               }
               <pre class="font-mono ${cfg.fontSize === 'small' ? 'text-[10px]' : 'text-[11px]'} leading-snug whitespace-pre">${escapeHtml(thermalText)}</pre>

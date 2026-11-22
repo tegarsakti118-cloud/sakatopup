@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#17A897" />
   <title>SakaPay Admin</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20108%20108%22%3E%3Cdefs%3E%3ClinearGradient%20id=%22fbg%22%20gradientUnits=%22userSpaceOnUse%22%20x1=%220%22%20y1=%220%22%20x2=%22108%22%20y2=%22108%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%233EE0CB%22/%3E%3Cstop%20offset=%220.55%22%20stop-color=%22%2317A897%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%230A5F55%22/%3E%3C/linearGradient%3E%3ClinearGradient%20id=%22frim%22%20gradientUnits=%22userSpaceOnUse%22%20x1=%2230%22%20y1=%2224%22%20x2=%2278%22%20y2=%2284%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%23FFFFFF%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%23BFEFE8%22/%3E%3C/linearGradient%3E%3ClinearGradient%20id=%22fface%22%20gradientUnits=%22userSpaceOnUse%22%20x1=%2254%22%20y1=%2228%22%20x2=%2254%22%20y2=%2280%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%230F8A7C%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%2308463F%22/%3E%3C/linearGradient%3E%3ClinearGradient%20id=%22fbolt%22%20gradientUnits=%22userSpaceOnUse%22%20x1=%2258%22%20y1=%2234%22%20x2=%2248%22%20y2=%2275%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%23FFE873%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%23FFAE00%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath%20d=%22M24,0%20L84,0%20A24,24%200%200,1%20108,24%20L108,84%20A24,24%200%200,1%2084,108%20L24,108%20A24,24%200%200,1%200,84%20L0,24%20A24,24%200%200,1%2024,0%20Z%22%20fill=%22url(%23fbg)%22/%3E%3Cpath%20d=%22M52,0%20L84,0%20A24,24%200%200,1%20108,24%20L108,56%20A56,56%200%200,1%2052,0%20Z%22%20fill=%22%23fff%22%20fill-opacity=%220.14%22/%3E%3Cpath%20d=%22M54,26%20A32,32%200%201,1%2054,90%20A32,32%200%201,1%2054,26%20Z%22%20fill=%22%23000%22%20fill-opacity=%220.18%22/%3E%3Cpath%20d=%22M54,22%20A32,32%200%201,1%2054,86%20A32,32%200%201,1%2054,22%20Z%22%20fill=%22url(%23frim)%22/%3E%3Cpath%20d=%22M54,28%20A26,26%200%201,1%2054,80%20A26,26%200%201,1%2054,28%20Z%22%20fill=%22url(%23fface)%22/%3E%3Cpath%20d=%22M58,34%20L42,57%20L52,57%20L48,75%20L67,50%20L57,50%20Z%22%20fill=%22url(%23fbolt)%22/%3E%3Cpath%20d=%22M22,18%20L24.2,23.8%20L30,26%20L24.2,28.2%20L22,34%20L19.8,28.2%20L14,26%20L19.8,23.8%20Z%22%20fill=%22%23fff%22%20fill-opacity=%220.95%22/%3E%3Cpath%20d=%22M88,78%20L89.6,82.4%20L94,84%20L89.6,85.6%20L88,90%20L86.4,85.6%20L82,84%20L86.4,82.4%20Z%22%20fill=%22%23fff%22%20fill-opacity=%220.8%22/%3E%3C/svg%3E" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -32,23 +33,35 @@
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans antialiased selection:bg-primarySoft selection:text-primaryDark">
 
+  <!-- Logo SakaPay (dipakai ulang lewat <use href="#sakapay-logo">) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+<linearGradient id="skp-bg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="108" y2="108"><stop offset="0" stop-color="#3EE0CB"/><stop offset="0.55" stop-color="#17A897"/><stop offset="1" stop-color="#0A5F55"/></linearGradient>
+<linearGradient id="skp-rim" gradientUnits="userSpaceOnUse" x1="30" y1="24" x2="78" y2="84"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#BFEFE8"/></linearGradient>
+<linearGradient id="skp-face" gradientUnits="userSpaceOnUse" x1="54" y1="28" x2="54" y2="80"><stop offset="0" stop-color="#0F8A7C"/><stop offset="1" stop-color="#08463F"/></linearGradient>
+<linearGradient id="skp-bolt" gradientUnits="userSpaceOnUse" x1="58" y1="34" x2="48" y2="75"><stop offset="0" stop-color="#FFE873"/><stop offset="1" stop-color="#FFAE00"/></linearGradient>
+    </defs>
+    <symbol id="sakapay-logo" viewBox="0 0 108 108">
+<path d="M24,0 L84,0 A24,24 0 0,1 108,24 L108,84 A24,24 0 0,1 84,108 L24,108 A24,24 0 0,1 0,84 L0,24 A24,24 0 0,1 24,0 Z" fill="url(#skp-bg)"/>
+<path d="M52,0 L84,0 A24,24 0 0,1 108,24 L108,56 A56,56 0 0,1 52,0 Z" fill="#fff" fill-opacity="0.14"/>
+<path d="M54,26 A32,32 0 1,1 54,90 A32,32 0 1,1 54,26 Z" fill="#000" fill-opacity="0.18"/>
+<path d="M54,22 A32,32 0 1,1 54,86 A32,32 0 1,1 54,22 Z" fill="url(#skp-rim)"/>
+<path d="M54,28 A26,26 0 1,1 54,80 A26,26 0 1,1 54,28 Z" fill="url(#skp-face)"/>
+<path d="M58,34 L42,57 L52,57 L48,75 L67,50 L57,50 Z" fill="url(#skp-bolt)"/>
+<path d="M22,18 L24.2,23.8 L30,26 L24.2,28.2 L22,34 L19.8,28.2 L14,26 L19.8,23.8 Z" fill="#fff" fill-opacity="0.95"/>
+<path d="M88,78 L89.6,82.4 L94,84 L89.6,85.6 L88,90 L86.4,85.6 L82,84 L86.4,82.4 Z" fill="#fff" fill-opacity="0.8"/>
+    </symbol>
+  </svg>
+
   <div id="loading-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white">
-    <div class="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 animate-pulse">
-      <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    </div>
+    <div class="w-14 h-14 drop-shadow-md animate-pulse"><svg class="w-full h-full" viewBox="0 0 108 108" aria-label="SakaPay"><use href="#sakapay-logo"/></svg></div>
     <p class="mt-4 text-sm font-semibold text-slate-600">Memverifikasi sesi admin...</p>
   </div>
 
   <section id="login-view" class="hidden min-h-screen flex flex-col justify-center px-5 py-8 bg-gradient-to-b from-primarySoft/60 via-slate-50 to-slate-100">
     <div class="w-full max-w-sm mx-auto bg-white rounded-3xl shadow-xl shadow-slate-200/70 border border-slate-100 p-6 sm:p-7">
       <div class="flex flex-col items-center text-center mb-6">
-        <div class="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-md shadow-primary/25 mb-3">
-          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        </div>
+        <div class="w-14 h-14 drop-shadow-md mb-3"><svg class="w-full h-full" viewBox="0 0 108 108" aria-label="SakaPay"><use href="#sakapay-logo"/></svg></div>
         <h1 class="text-xl font-extrabold tracking-tight text-slate-900">SakaPay Top Up</h1>
         <span class="mt-1 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primarySoft text-primaryDark">
           <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
@@ -98,11 +111,7 @@
     <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200/80">
       <div class="max-w-lg mx-auto px-4 h-14 flex items-center justify-between gap-2">
         <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shrink-0">
-            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
+          <div class="w-8 h-8 shrink-0"><svg class="w-full h-full" viewBox="0 0 108 108" aria-label="SakaPay"><use href="#sakapay-logo"/></svg></div>
           <div class="truncate">
             <h2 id="topbar-title" class="text-sm font-extrabold text-slate-900 leading-tight truncate">Dashboard Admin</h2>
             <p class="text-[10px] font-semibold text-primaryDark leading-tight">SakaPay Internal</p>
