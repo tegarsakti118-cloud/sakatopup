@@ -121,4 +121,6 @@ async function bootstrap() {
   }
 }
 
+window.addEventListener('sakapay:printer-updated', updatePrinterPill);
+
 bootstrap();

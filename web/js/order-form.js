@@ -1,6 +1,7 @@
 import { fetchOrderFormData, createOrder, generateUUID } from './orders-api.js';
 import { isSafeHttpUrl } from './catalog-api.js';
 import { escapeHtml, formatIDR, showToast } from './utils.js';
+import { lookupGameNickname, isNicknameLookupSupported, nicknameNeedsZone } from './nickname-api.js';
 
 const formState = {
   games: [],
@@ -13,6 +14,10 @@ const formState = {
   customerWa: '',
   targetUserId: '',
   targetZoneId: '',
+  gameUsername: '',
+  usernameManual: false,
+  usernameStatus: 'idle',
+  lookupSeq: 0,
   supplierCode: '',
   notes: '',
   saveCustomer: true,
@@ -23,6 +28,9 @@ const formState = {
   onOrderCreated: null,
   onGoCatalog: null
 };
+
+let lookupTimer = null;
+const LOOKUP_DEBOUNCE_MS = 600;
 
 function getOrderModalRoot() {
   let root = document.getElementById('order-modal-root');
@@ -43,6 +51,11 @@ function resetFormValues() {
   formState.customerWa = '';
   formState.targetUserId = '';
   formState.targetZoneId = '';
+  clearTimeout(lookupTimer);
+  formState.lookupSeq += 1;
+  formState.gameUsername = '';
+  formState.usernameManual = false;
+  formState.usernameStatus = 'idle';
   formState.supplierCode = '';
   formState.notes = '';
   formState.saveCustomer = true;
@@ -61,6 +74,91 @@ function getGameProducts() {
 
 function getSelectedProduct() {
   return formState.products.find((p) => p.id === formState.selectedProductId) || null;
+}
+
+function getEffectiveCustomerName() {
+  return formState.customerName.trim() || formState.gameUsername.trim() || 'Pembeli Offline';
+}
+
+function renderUsernameStatus() {
+  const el = document.getElementById('ord-uname-status');
+  if (!el) return;
+  const game = getSelectedGame();
+  const supported = isNicknameLookupSupported(game);
+  const map = {
+    idle: supported
+      ? ['Username muncul otomatis setelah ID diisi.', 'text-slate-400']
+      : ['Cek otomatis belum tersedia untuk game ini. Isi manual jika perlu (opsional).', 'text-slate-400'],
+    loading: ['Mencari username...', 'text-primaryDark'],
+    found: ['\u2713 Username ditemukan. Ini yang akan tercetak di struk.', 'text-emerald-700'],
+    notfound: ['Username tidak ditemukan. Periksa ID, atau isi manual (opsional).', 'text-amber-700'],
+    error: ['Layanan cek username tidak bisa dihubungi. Isi manual atau lanjut tanpa username.', 'text-amber-700']
+  };
+  const [text, color] = map[formState.usernameStatus] || map.idle;
+  el.textContent = text;
+  el.className = `mt-1 text-[11px] font-medium ${color}`;
+}
+
+function clearUsernameState() {
+  clearTimeout(lookupTimer);
+  formState.lookupSeq += 1;
+  formState.gameUsername = '';
+  formState.usernameManual = false;
+  formState.usernameStatus = 'idle';
+  const inp = document.getElementById('ord-gname');
+  if (inp) inp.value = '';
+  renderUsernameStatus();
+}
+
+function scheduleNicknameLookup() {
+  clearTimeout(lookupTimer);
+  const game = getSelectedGame();
+  const uid = formState.targetUserId.trim();
+  const zone = formState.targetZoneId.trim();
+
+  if (!game || !isNicknameLookupSupported(game)) {
+    formState.usernameStatus = 'idle';
+    renderUsernameStatus();
+    return;
+  }
+  const ready = uid.length >= 5 && (!nicknameNeedsZone(game) || zone.length >= 3);
+  if (!ready) {
+    formState.usernameStatus = 'idle';
+    renderUsernameStatus();
+    return;
+  }
+
+  formState.usernameStatus = 'loading';
+  renderUsernameStatus();
+  const seq = ++formState.lookupSeq;
+
+  lookupTimer = setTimeout(async () => {
+    try {
+      const name = await lookupGameNickname(game, uid, zone);
+      if (seq !== formState.lookupSeq) return;
+      if (name) {
+        formState.usernameStatus = 'found';
+        if (!formState.usernameManual) {
+          formState.gameUsername = name;
+          const inp = document.getElementById('ord-gname');
+          if (inp) inp.value = name;
+        }
+      } else {
+        formState.usernameStatus = 'notfound';
+      }
+    } catch {
+      if (seq !== formState.lookupSeq) return;
+      formState.usernameStatus = 'error';
+    }
+    renderUsernameStatus();
+  }, LOOKUP_DEBOUNCE_MS);
+}
+
+function onTargetIdChanged() {
+  formState.duplicateInvoice = '';
+  formState.allowDuplicate = false;
+  clearUsernameState();
+  scheduleNicknameLookup();
 }
 
 async function pasteToInput(inputEl, onDone) {
@@ -235,8 +333,8 @@ function renderOrderForm() {
         </div>
 
         <div class="relative">
-          <label class="block text-xs font-bold text-slate-600 mb-1">Nama Pelanggan *</label>
-          <input id="ord-cust-name" type="text" value="${escapeHtml(formState.customerName)}" placeholder="Ketik nama atau cari pelanggan lama..."
+          <label class="block text-xs font-bold text-slate-600 mb-1">Nama Pelanggan <span class="font-normal text-slate-400">(Opsional)</span></label>
+          <input id="ord-cust-name" type="text" value="${escapeHtml(formState.customerName)}" placeholder="Kosongkan = pakai username game"
             class="w-full h-11 px-3.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:border-primary" />
           <div id="ord-cust-suggest" class="hidden absolute z-20 inset-x-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden"></div>
         </div>
@@ -268,7 +366,7 @@ function renderOrderForm() {
           <div class="${selGame.requires_zone_id ? 'col-span-2' : ''}">
             <label class="block text-xs font-bold text-slate-600 mb-1">User ID *</label>
             <div class="flex gap-1.5">
-              <input id="ord-uid" type="text" value="${escapeHtml(formState.targetUserId)}" placeholder="Masukkan ID akun"
+              <input id="ord-uid" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="${escapeHtml(formState.targetUserId)}" placeholder="Masukkan ID akun"
                 class="flex-1 min-w-0 h-11 px-3 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:border-primary" />
               <button type="button" id="ord-paste-uid" class="px-2.5 h-11 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-bold shrink-0">Tempel</button>
             </div>
@@ -277,11 +375,18 @@ function renderOrderForm() {
             selGame.requires_zone_id
               ? `<div>
                    <label class="block text-xs font-bold text-slate-600 mb-1">Zone ID *</label>
-                   <input id="ord-zid" type="text" value="${escapeHtml(formState.targetZoneId)}" placeholder="Server"
+                   <input id="ord-zid" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="${escapeHtml(formState.targetZoneId)}" placeholder="Server"
                      class="w-full h-11 px-3 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:border-primary" />
                  </div>`
               : ''
           }
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Username Game <span class="font-normal text-slate-400">(otomatis)</span></label>
+          <input id="ord-gname" type="text" maxlength="60" autocomplete="off" value="${escapeHtml(formState.gameUsername)}" placeholder="Muncul otomatis setelah ID diisi"
+            class="w-full h-11 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold focus:outline-none focus:border-primary focus:bg-white" />
+          <p id="ord-uname-status" class="mt-1 text-[11px] font-medium text-slate-400"></p>
         </div>
       </div>
 
@@ -323,6 +428,7 @@ function renderOrderForm() {
 
   bindOrderFormEvents();
   updateSaveCustomerHint();
+  renderUsernameStatus();
 }
 
 function openConfirmOrderModal() {
@@ -332,13 +438,13 @@ function openConfirmOrderModal() {
     showToast('Pilih game dan produk terlebih dahulu.', 'warning');
     return;
   }
-  if (!formState.customerName.trim()) {
-    showToast('Nama pelanggan wajib diisi.', 'warning');
-    return;
-  }
   const waDigits = formState.customerWa.replace(/[^0-9]/g, '');
   if (waDigits.length > 0 && (waDigits.length < 8 || waDigits.length > 16)) {
     showToast('Nomor WhatsApp harus 8-16 digit atau dikosongkan.', 'warning');
+    return;
+  }
+  if (waDigits.length > 0 && !formState.customerName.trim() && !formState.gameUsername.trim()) {
+    showToast('Isi nama pelanggan, atau tunggu username game muncul, sebelum menyimpan pelanggan ber-WA.', 'warning');
     return;
   }
   if (!formState.targetUserId.trim()) {
@@ -350,6 +456,7 @@ function openConfirmOrderModal() {
     return;
   }
 
+  const effectiveName = getEffectiveCustomerName();
   const profit = Number(product.profit ?? product.sell_price - product.base_price);
   const targetDisplay = formState.targetZoneId.trim()
     ? `${formState.targetUserId.trim()} (${formState.targetZoneId.trim()})`
@@ -365,10 +472,11 @@ function openConfirmOrderModal() {
         </div>
 
         <div class="bg-slate-50 rounded-2xl p-4 space-y-2 text-xs">
-          <div class="flex justify-between gap-2"><span class="text-slate-500">Pembeli</span><span class="font-bold text-slate-900">${escapeHtml(formState.customerName.trim())}</span></div>
+          <div class="flex justify-between gap-2"><span class="text-slate-500">Pembeli</span><span class="font-bold text-slate-900">${escapeHtml(effectiveName)}</span></div>
           <div class="flex justify-between gap-2"><span class="text-slate-500">WhatsApp</span><span class="font-mono font-semibold text-slate-800">${waDigits ? escapeHtml(waDigits) : 'Pembeli Offline (Tanpa WA)'}</span></div>
           <div class="flex justify-between gap-2"><span class="text-slate-500">Game</span><span class="font-bold text-slate-900">${escapeHtml(game.name)}</span></div>
           <div class="flex justify-between gap-2"><span class="text-slate-500">ID Tujuan</span><span class="font-mono font-extrabold text-primaryDark">${escapeHtml(targetDisplay)}</span></div>
+          ${formState.gameUsername.trim() ? `<div class="flex justify-between gap-2"><span class="text-slate-500">Username Game</span><span class="font-bold text-slate-900">${escapeHtml(formState.gameUsername.trim())}</span></div>` : ''}
           <div class="flex justify-between gap-2"><span class="text-slate-500">Produk</span><span class="font-bold text-slate-900">${escapeHtml(product.name)}</span></div>
           <div class="border-t border-slate-200 my-1 pt-2 flex justify-between"><span class="text-slate-500">Harga Jual</span><span class="font-extrabold text-slate-900">${formatIDR(product.sell_price)}</span></div>
           <div class="flex justify-between"><span class="text-slate-500">Harga Modal</span><span class="font-bold text-slate-700">${formatIDR(product.base_price)}</span></div>
@@ -399,7 +507,7 @@ function openConfirmOrderModal() {
       try {
         const trx = await createOrder({
           idempotency_key: formState.idempotencyKey,
-          customer_name: formState.customerName,
+          customer_name: effectiveName,
           customer_wa: formState.customerWa,
           game_id: game.id,
           product_id: product.id,
@@ -469,8 +577,7 @@ function bindOrderFormEvents() {
   document.getElementById('ord-paste-uid')?.addEventListener('click', () => {
     pasteToInput(uidIn, (val) => {
       formState.targetUserId = val;
-      formState.duplicateInvoice = '';
-      formState.allowDuplicate = false;
+      onTargetIdChanged();
     });
   });
 
@@ -480,14 +587,17 @@ function bindOrderFormEvents() {
 
   uidIn?.addEventListener('input', (e) => {
     formState.targetUserId = e.target.value;
-    formState.duplicateInvoice = '';
-    formState.allowDuplicate = false;
+    onTargetIdChanged();
   });
 
   zidIn?.addEventListener('input', (e) => {
     formState.targetZoneId = e.target.value;
-    formState.duplicateInvoice = '';
-    formState.allowDuplicate = false;
+    onTargetIdChanged();
+  });
+
+  document.getElementById('ord-gname')?.addEventListener('input', (e) => {
+    formState.gameUsername = e.target.value;
+    formState.usernameManual = e.target.value.trim().length > 0;
   });
 
   document.querySelectorAll('[data-pick-game]').forEach((btn) => {
@@ -496,7 +606,9 @@ function bindOrderFormEvents() {
       formState.targetZoneId = '';
       formState.duplicateInvoice = '';
       formState.allowDuplicate = false;
+      clearUsernameState();
       renderOrderForm();
+      scheduleNicknameLookup();
     });
   });
 

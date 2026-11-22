@@ -234,6 +234,25 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface
+        fun openBluetoothSettings(): String {
+            return try {
+                runOnUiThread {
+                    try {
+                        startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS))
+                    } catch (_: Exception) {
+                        Toast.makeText(this@MainActivity, "Tidak dapat membuka pengaturan Bluetooth.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                JSONObject().apply { put("ok", true) }.toString()
+            } catch (e: Exception) {
+                JSONObject().apply {
+                    put("ok", false)
+                    put("error", e.message ?: "Gagal membuka pengaturan Bluetooth.")
+                }.toString()
+            }
+        }
+
+        @JavascriptInterface
         fun connectPrinter(macAddress: String): String {
             return printer.connect(macAddress).toString()
         }

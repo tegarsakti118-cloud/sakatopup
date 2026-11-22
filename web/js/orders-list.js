@@ -11,7 +11,8 @@ import {
   printThermal58mm,
   saveReceiptAsPdfOrPrint,
   shareReceiptWhatsApp,
-  openReceiptPreviewModal
+  openReceiptPreviewModal,
+  openPrinterScanModal
 } from './receipt.js';
 import { downloadCsvFile } from './settings.js';
 import { escapeHtml, formatIDR, formatWIB, getStatusBadge, showToast } from './utils.js';
@@ -467,6 +468,7 @@ export async function openTransactionDetail(transactionId) {
               <button type="button" id="det-btn-pdf" class="h-10 rounded-xl bg-slate-100 text-slate-800 text-xs font-bold">Simpan PDF</button>
               <button type="button" id="det-btn-wa" class="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">Bagikan WA</button>
             </div>
+            <button type="button" id="det-btn-scan" class="w-full h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">Scan Printer Bluetooth</button>
           </div>
 
           <div class="space-y-2">
@@ -494,6 +496,9 @@ export async function openTransactionDetail(transactionId) {
     document.getElementById('det-btn-print')?.addEventListener('click', async () => {
       try { await printThermal58mm(trx.id, getChosenFmt(), notifyChange); }
       catch (err) { showToast(err?.message || 'Gagal mencetak.', 'error'); }
+    });
+    document.getElementById('det-btn-scan')?.addEventListener('click', () => {
+      openPrinterScanModal({ onConnected: () => openTransactionDetail(trx.id) });
     });
     document.getElementById('det-btn-preview')?.addEventListener('click', () => {
       openReceiptPreviewModal(trx.id, notifyChange);

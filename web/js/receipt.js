@@ -313,6 +313,139 @@ function drawDigitalReceiptCanvas(receipt, business, format = 'lengkap') {
   return canvas;
 }
 
+export function openPrinterScanModal({ onConnected = null } = {}) {
+  let root = document.getElementById('printer-scan-root');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'printer-scan-root';
+    document.body.appendChild(root);
+  }
+
+  const st = { devices: [], loading: false, error: '', connectingMac: '' };
+  const close = () => {
+    root.innerHTML = '';
+  };
+
+  const bridgeHas = (fn) => isAndroidBridgeReady() && typeof window.SakaPayAndroid[fn] === 'function';
+
+  const render = () => {
+    const cfg = getPrinterConfig();
+    const canScan = bridgeHas('scanBluetoothPrinters');
+    const canOpenBtSettings = bridgeHas('openBluetoothSettings');
+
+    let body = '';
+    if (!canScan) {
+      body = `<div class="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-[11px] text-amber-800">Scan printer Bluetooth hanya tersedia di aplikasi Android SakaPay Admin (APK).</div>`;
+    } else if (st.loading) {
+      body = `<div class="py-6 text-center text-xs font-semibold text-slate-500">Memindai printer...</div>`;
+    } else if (st.error) {
+      body = `<div class="rounded-xl bg-red-50 border border-red-200 px-3 py-2.5 text-[11px] text-red-700">${escapeHtml(st.error)}</div>`;
+    } else if (st.devices.length === 0) {
+      body = `<div class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3 text-[11px] text-slate-600">Belum ada printer yang terpasang (paired). Nyalakan printer, pasangkan dulu lewat Pengaturan Bluetooth HP, lalu tekan Scan Ulang.</div>`;
+    } else {
+      body = `<div class="space-y-1.5">${st.devices
+        .map((d) => {
+          const isSaved = cfg.macAddress === d.address;
+          const isBusy = st.connectingMac === d.address;
+          return `
+            <button type="button" data-psc-mac="${escapeHtml(d.address)}" data-psc-name="${escapeHtml(d.name || 'Printer 58mm')}" ${st.connectingMac ? 'disabled' : ''}
+              class="w-full text-left px-3 py-2.5 rounded-xl border ${isSaved ? 'border-primary bg-primarySoft/40' : 'border-slate-200 bg-white'} flex items-center justify-between gap-2 disabled:opacity-60">
+              <div class="min-w-0">
+                <p class="text-xs font-bold text-slate-900 truncate">${escapeHtml(d.name || 'Bluetooth Printer')}</p>
+                <p class="font-mono text-[10px] text-slate-500">${escapeHtml(d.address)}</p>
+              </div>
+              <span class="text-[11px] font-bold text-primaryDark shrink-0">${isBusy ? 'Menghubungkan...' : 'Hubungkan'}</span>
+            </button>`;
+        })
+        .join('')}</div>`;
+    }
+
+    root.innerHTML = `
+      <div class="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center">
+        <div class="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl p-5 max-h-[85vh] overflow-y-auto space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-base font-extrabold text-slate-900">Scan Printer Bluetooth</h3>
+              <p class="text-[10px] text-slate-400">Pilih printer thermal 58mm untuk mencetak struk</p>
+            </div>
+            <button type="button" id="psc-close" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold text-sm">\u2715</button>
+          </div>
+          ${body}
+          <div class="grid ${canOpenBtSettings ? 'grid-cols-2' : 'grid-cols-1'} gap-2 pt-1">
+            <button type="button" id="psc-rescan" ${st.loading || st.connectingMac ? 'disabled' : ''}
+              class="h-11 rounded-xl bg-primary hover:bg-primaryDark disabled:opacity-60 text-white text-xs font-bold shadow-sm">Scan Ulang</button>
+            ${
+              canOpenBtSettings
+                ? `<button type="button" id="psc-bt-settings" class="h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold">Buka Pengaturan Bluetooth</button>`
+                : ''
+            }
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById('psc-close')?.addEventListener('click', close);
+    document.getElementById('psc-rescan')?.addEventListener('click', scan);
+    document.getElementById('psc-bt-settings')?.addEventListener('click', () => {
+      try {
+        window.SakaPayAndroid.openBluetoothSettings();
+      } catch {
+        showToast('Tidak bisa membuka pengaturan Bluetooth.', 'warning');
+      }
+    });
+    root.querySelectorAll('[data-psc-mac]').forEach((btn) => {
+      btn.addEventListener('click', () => connect(btn.dataset.pscMac, btn.dataset.pscName));
+    });
+  };
+
+  const scan = () => {
+    if (!bridgeHas('scanBluetoothPrinters')) {
+      render();
+      return;
+    }
+    st.loading = true;
+    st.error = '';
+    render();
+    setTimeout(() => {
+      try {
+        const raw = window.SakaPayAndroid.scanBluetoothPrinters();
+        const res = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (!res?.ok) throw new Error(res?.error || 'Gagal memindai Bluetooth.');
+        st.devices = res.devices || [];
+      } catch (err) {
+        st.devices = [];
+        st.error = err?.message || 'Gagal memindai printer.';
+      }
+      st.loading = false;
+      render();
+    }, 30);
+  };
+
+  const connect = (mac, name) => {
+    if (!bridgeHas('connectPrinter')) return;
+    st.connectingMac = mac;
+    render();
+    setTimeout(() => {
+      try {
+        const raw = window.SakaPayAndroid.connectPrinter(mac);
+        const res = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (!res?.ok) throw new Error(res?.error || 'Gagal menghubungkan printer.');
+        savePrinterConfig({ macAddress: mac, printerName: name });
+        window.dispatchEvent(new CustomEvent('sakapay:printer-updated'));
+        showToast(`Terhubung ke ${name}!`, 'success');
+        close();
+        if (typeof onConnected === 'function') onConnected();
+      } catch (err) {
+        showToast(err?.message || 'Gagal menghubungkan printer.', 'error');
+        st.connectingMac = '';
+        render();
+      }
+    }, 30);
+  };
+
+  render();
+  scan();
+}
+
 export async function printThermal58mm(transactionId, format = 'lengkap', onLogged = null) {
   const conn = getPrinterConnectionState();
   const cfg = getPrinterConfig();
@@ -322,7 +455,20 @@ export async function printThermal58mm(transactionId, format = 'lengkap', onLogg
     return false;
   }
   if (!conn.connected) {
-    showToast('Printer Bluetooth belum terhubung! Hubungkan dulu di menu Pengaturan.', 'warning');
+    showToast('Printer Bluetooth belum terhubung. Pilih printer dulu.', 'warning');
+    openPrinterScanModal({
+      onConnected: async () => {
+        try {
+          const ok = await printThermal58mm(transactionId, format, onLogged);
+          if (ok) {
+            const prev = document.getElementById('receipt-preview-root');
+            if (prev) prev.innerHTML = '';
+          }
+        } catch (err) {
+          showToast(err?.message || 'Gagal mencetak struk.', 'error');
+        }
+      }
+    });
     return false;
   }
 
@@ -541,6 +687,7 @@ export async function openReceiptPreviewModal(transactionId, onLogged = null) {
               <button type="button" id="rcp-btn-print" class="h-11 rounded-xl bg-primary hover:bg-primaryDark text-white text-xs font-bold shadow-sm">${printLabel}</button>
               <button type="button" id="rcp-btn-wa" class="h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm">Bagikan ke WA</button>
               <button type="button" id="rcp-btn-pdf" class="col-span-2 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold">Simpan PDF / Gambar</button>
+              <button type="button" id="rcp-btn-scan" class="col-span-2 h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">Scan Printer Bluetooth</button>
             </div>
           </div>
         </div>`;
@@ -566,6 +713,9 @@ export async function openReceiptPreviewModal(transactionId, onLogged = null) {
         } catch (err) {
           showToast(err?.message || 'Gagal mencetak struk.', 'error');
         }
+      });
+      document.getElementById('rcp-btn-scan').addEventListener('click', () => {
+        openPrinterScanModal();
       });
       document.getElementById('rcp-btn-wa').addEventListener('click', async () => {
         try {

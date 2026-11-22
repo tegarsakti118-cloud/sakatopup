@@ -1,12 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Latar: gradasi teal diagonal -->
+    <path android:pathData="M24,0 L84,0 A24,24 0 0,1 108,24 L108,84 A24,24 0 0,1 84,108 L24,108 A24,24 0 0,1 0,84 L0,24 A24,24 0 0,1 24,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108">
+                <item android:offset="0" android:color="#3EE0CB" />
+                <item android:offset="0.55" android:color="#17A897" />
+                <item android:offset="1" android:color="#0A5F55" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Kilau cahaya di pojok kanan atas -->
     <path
-        android:fillColor="#17A897"
-        android:pathData="M24,0 L84,0 A24,24 0 0,1 108,24 L108,84 A24,24 0 0,1 84,108 L24,108 A24,24 0 0,1 0,84 L0,24 A24,24 0 0,1 24,0 Z" />
+        android:fillColor="#24FFFFFF"
+        android:pathData="M52,0 L84,0 A24,24 0 0,1 108,24 L108,56 A56,56 0 0,1 52,0 Z" />
+
+    <!-- Bayangan koin -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M58,20 L30,58 L50,58 L46,88 L78,48 L56,48 Z" />
+        android:fillColor="#2E000000"
+        android:pathData="M54,26 A32,32 0 1,1 54,90 A32,32 0 1,1 54,26 Z" />
+
+    <!-- Rim koin -->
+    <path android:pathData="M54,22 A32,32 0 1,1 54,86 A32,32 0 1,1 54,22 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="30"
+                android:startY="24"
+                android:endX="78"
+                android:endY="84">
+                <item android:offset="0" android:color="#FFFFFF" />
+                <item android:offset="1" android:color="#BFEFE8" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Permukaan koin -->
+    <path android:pathData="M54,28 A26,26 0 1,1 54,80 A26,26 0 1,1 54,28 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54"
+                android:startY="28"
+                android:endX="54"
+                android:endY="80">
+                <item android:offset="0" android:color="#0F8A7C" />
+                <item android:offset="1" android:color="#08463F" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Petir emas -->
+    <path android:pathData="M58,34 L42,57 L52,57 L48,75 L67,50 L57,50 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="58"
+                android:startY="34"
+                android:endX="48"
+                android:endY="75">
+                <item android:offset="0" android:color="#FFE873" />
+                <item android:offset="1" android:color="#FFAE00" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Kilau bintang -->
+    <path
+        android:fillColor="#F2FFFFFF"
+        android:pathData="M22,18 L24.2,23.8 L30,26 L24.2,28.2 L22,34 L19.8,28.2 L14,26 L19.8,23.8 Z" />
+    <path
+        android:fillColor="#CCFFFFFF"
+        android:pathData="M88,78 L89.6,82.4 L94,84 L89.6,85.6 L88,90 L86.4,85.6 L82,84 L86.4,82.4 Z" />
 </vector>
