@@ -4,7 +4,8 @@ import {
   fetchTransactionDetail,
   updateTransactionStatus,
   correctTransactionRefund,
-  invokeDigiflazzOrder
+  invokeDigiflazzOrder,
+  deleteTransaction
 } from './orders-api.js';
 import {
   getPrinterConnectionState,
@@ -43,6 +44,78 @@ function getDetailModalRoot() {
 
 function closeDetailModal() {
   getDetailModalRoot().innerHTML = '';
+}
+
+function openDeleteTransactionModal(trx, onDeleted) {
+  let root = document.getElementById('trx-delete-root');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'trx-delete-root';
+    document.body.appendChild(root);
+  }
+  const close = () => {
+    root.innerHTML = '';
+  };
+  const heavy = ['Berhasil', 'Refund'].includes(trx.status);
+
+  root.innerHTML = `
+    <div class="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center">
+      <div class="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl p-5 max-h-[90vh] overflow-y-auto space-y-3">
+        <h3 class="text-base font-extrabold text-red-700">Hapus Transaksi Permanen</h3>
+        <p class="text-xs text-slate-600">
+          Invoice <span class="font-mono font-bold text-slate-900">${escapeHtml(trx.invoice_code)}</span> (${escapeHtml(trx.status)})
+          beserta log cetak dan audit lognya dihapus dari database. Salinan arsipnya tetap tersimpan di tabel
+          <span class="font-mono">deleted_transactions_audit</span>.
+        </p>
+        ${
+          heavy
+            ? `<div class="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-[11px] font-semibold text-red-700">Transaksi ${escapeHtml(trx.status)} ikut dihitung di omzet dan untung. Setelah dihapus, angka laporan akan berubah.</div>`
+            : ''
+        }
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">Alasan (opsional)</label>
+          <input id="del-reason" type="text" maxlength="120" placeholder="Contoh: data tes"
+            class="w-full h-11 px-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-primary" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">Ketik kode invoice untuk konfirmasi</label>
+          <input id="del-confirm" type="text" autocomplete="off" autocapitalize="characters" placeholder="${escapeHtml(trx.invoice_code)}"
+            class="w-full h-11 px-3 rounded-xl border border-slate-200 font-mono text-sm focus:outline-none focus:border-red-400" />
+        </div>
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button type="button" id="del-cancel" class="h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold">Batal</button>
+          <button type="button" id="del-submit" disabled class="h-11 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white text-xs font-bold">Hapus Permanen</button>
+        </div>
+      </div>
+    </div>`;
+
+  const confirmEl = document.getElementById('del-confirm');
+  const submitEl = document.getElementById('del-submit');
+  const matches = () => confirmEl.value.trim().toUpperCase() === String(trx.invoice_code).trim().toUpperCase();
+  confirmEl.addEventListener('input', () => {
+    submitEl.disabled = !matches();
+  });
+  document.getElementById('del-cancel').addEventListener('click', close);
+  submitEl.addEventListener('click', async () => {
+    if (!matches()) return;
+    submitEl.disabled = true;
+    submitEl.textContent = 'Menghapus...';
+    try {
+      await deleteTransaction({
+        id: trx.id,
+        confirmInvoice: confirmEl.value.trim(),
+        reason: document.getElementById('del-reason')?.value || ''
+      });
+      showToast(`Transaksi ${trx.invoice_code} dihapus.`, 'success');
+      close();
+      if (typeof onDeleted === 'function') await onDeleted();
+    } catch (err) {
+      showToast(err?.message || 'Gagal menghapus transaksi.', 'error');
+      submitEl.disabled = !matches();
+      submitEl.textContent = 'Hapus Permanen';
+    }
+  });
+  confirmEl.focus();
 }
 
 async function copyText(text, label = 'Teks') {
@@ -480,6 +553,12 @@ export async function openTransactionDetail(transactionId) {
             <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Audit Log Transaksi</h4>
             <div class="space-y-2">${logsHtml}</div>
           </div>
+
+          <div class="rounded-2xl border border-red-200 bg-red-50/60 p-3.5 space-y-2">
+            <h4 class="text-xs font-extrabold uppercase tracking-wider text-red-700">Zona Berbahaya</h4>
+            <p class="text-[11px] text-red-700/80">Hapus transaksi ini permanen, misalnya untuk data tes. Arsip salinannya disimpan di database.</p>
+            <button type="button" id="det-btn-delete" class="w-full h-10 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold">Hapus Transaksi</button>
+          </div>
         </div>
       </div>`;
 
@@ -579,6 +658,14 @@ export async function openTransactionDetail(transactionId) {
         showToast('Koreksi Refund dicatat ke audit log.', 'success');
         await notifyChange();
       } catch (err) { showToast(err?.message || 'Gagal koreksi refund.', 'error'); }
+    });
+
+    document.getElementById('det-btn-delete')?.addEventListener('click', () => {
+      openDeleteTransactionModal(trx, async () => {
+        closeDetailModal();
+        await loadOrdersList();
+        if (typeof listState.onChanged === 'function') listState.onChanged();
+      });
     });
   } catch (err) {
     closeDetailModal();

@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { escapeHtml, formatIDR, formatWIB, getStatusBadge, showToast } from './utils.js';
+import { fetchSupplierBalance } from './orders-api.js';
 
 let activePeriod = 'daily';
 let onOpenTransactionCb = null;
@@ -98,6 +99,36 @@ function renderRecentTransactions(rows) {
   });
 }
 
+const LOW_BALANCE_WARNING = 100000; // di bawah nilai ini saldo ditandai merah
+let balanceFetchedAt = 0;
+
+async function loadSupplierBalance(force = false) {
+  const valEl = document.getElementById('supplier-balance-value');
+  const noteEl = document.getElementById('supplier-balance-note');
+  if (!valEl || !noteEl) return;
+  if (!force && Date.now() - balanceFetchedAt < 60000) return;
+
+  noteEl.textContent = 'Memuat saldo...';
+  try {
+    const res = await fetchSupplierBalance();
+    const bal = Number(res?.balance);
+    if (!Number.isFinite(bal)) throw new Error('Respons saldo tidak valid.');
+    const low = bal < LOW_BALANCE_WARNING;
+    valEl.textContent = formatIDR(bal);
+    valEl.className = `text-lg font-extrabold tabular-nums ${low ? 'text-red-600' : 'text-slate-900'}`;
+    noteEl.textContent = low
+      ? `Saldo menipis (di bawah ${formatIDR(LOW_BALANCE_WARNING)}). Segera deposit.`
+      : `Diperbarui ${formatWIB(res.fetched_at)}`;
+    noteEl.className = `text-[10px] ${low ? 'font-bold text-red-600' : 'text-slate-400'}`;
+    balanceFetchedAt = Date.now();
+  } catch (err) {
+    valEl.textContent = '\u2014';
+    valEl.className = 'text-lg font-extrabold tabular-nums text-slate-400';
+    noteEl.textContent = err?.message || 'Gagal memuat saldo.';
+    noteEl.className = 'text-[10px] text-amber-700';
+  }
+}
+
 export async function loadDashboard(period = activePeriod) {
   if (!supabase) return;
   activePeriod = period;
@@ -118,6 +149,7 @@ export async function loadDashboard(period = activePeriod) {
     if (recentRes.error) throw recentRes.error;
     renderSummary(summaryRes.data);
     renderRecentTransactions(recentRes.data);
+    loadSupplierBalance();
   } catch (err) {
     showToast(err?.message || 'Gagal memuat ringkasan dashboard.', 'error');
   } finally {
@@ -134,4 +166,5 @@ export function initDashboardUI({ onOpenTransaction } = {}) {
     });
   });
   document.getElementById('dash-refresh-btn')?.addEventListener('click', () => loadDashboard(activePeriod));
+  document.getElementById('supplier-balance-refresh')?.addEventListener('click', () => loadSupplierBalance(true));
 }

@@ -225,3 +225,31 @@ export async function invokeDigiflazzOrder(transactionId) {
   if (data?.error) throw new Error(data.error);
   return data;
 }
+
+export async function deleteTransaction({ id, confirmInvoice, reason = '' }) {
+  if (!supabase) throw new Error('Supabase belum siap.');
+  const { data, error } = await supabase.rpc('delete_transaction', {
+    p_transaction_id: id,
+    p_confirm_invoice: confirmInvoice,
+    p_reason: reason || ''
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchSupplierBalance() {
+  if (!supabase) throw new Error('Supabase belum siap.');
+  const { data, error } = await supabase.functions.invoke('digiflazz-balance', { body: {} });
+  if (error) {
+    let detail = error.message || 'Gagal memanggil Edge Function saldo.';
+    try {
+      if (error.context && typeof error.context.json === 'function') {
+        const j = await error.context.json();
+        if (j?.error) detail = j.error;
+      }
+    } catch {}
+    throw new Error(detail);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
