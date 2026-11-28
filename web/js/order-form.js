@@ -464,80 +464,74 @@ function openConfirmOrderModal() {
 
   const root = getOrderModalRoot();
   root.innerHTML = `
-    <div class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-end sm:items-center justify-center">
-      <div class="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-extrabold text-slate-900">Periksa Ulang Pesanan</h3>
-          <button type="button" id="ord-modal-close" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold text-sm">✕</button>
+    <div class="fixed inset-0 z-[80] bg-slate-950/55 backdrop-blur-[2px] flex items-end justify-center" id="ord-modal-backdrop">
+      <section class="w-full max-w-lg bg-white rounded-t-[28px] overflow-hidden shadow-2xl animate-[slideUp_.22s_ease-out]" role="dialog" aria-modal="true" aria-label="Rincian pesanan">
+        <div class="bg-[#16877f] text-white px-5 py-4 flex items-center justify-between">
+          <div class="flex items-center gap-3"><span class="text-xl">☷</span><div><p class="font-extrabold text-base">Rincian</p><p class="text-[10px] text-white/75">Periksa pesanan sebelum disimpan</p></div></div>
+          <button type="button" id="ord-modal-close" aria-label="Tutup" class="w-9 h-9 rounded-full bg-white/15 text-white text-xl">×</button>
         </div>
-
-        <div class="bg-slate-50 rounded-2xl p-4 space-y-2 text-xs">
-          <div class="flex justify-between gap-2"><span class="text-slate-500">Pembeli</span><span class="font-bold text-slate-900">${escapeHtml(effectiveName)}</span></div>
-          <div class="flex justify-between gap-2"><span class="text-slate-500">WhatsApp</span><span class="font-mono font-semibold text-slate-800">${waDigits ? escapeHtml(waDigits) : 'Pembeli Offline (Tanpa WA)'}</span></div>
-          <div class="flex justify-between gap-2"><span class="text-slate-500">Game</span><span class="font-bold text-slate-900">${escapeHtml(game.name)}</span></div>
-          <div class="flex justify-between gap-2"><span class="text-slate-500">ID Tujuan</span><span class="font-mono font-extrabold text-primaryDark">${escapeHtml(targetDisplay)}</span></div>
-          ${formState.gameUsername.trim() ? `<div class="flex justify-between gap-2"><span class="text-slate-500">Username Game</span><span class="font-bold text-slate-900">${escapeHtml(formState.gameUsername.trim())}</span></div>` : ''}
-          <div class="flex justify-between gap-2"><span class="text-slate-500">Produk</span><span class="font-bold text-slate-900">${escapeHtml(product.name)}</span></div>
-          <div class="border-t border-slate-200 my-1 pt-2 flex justify-between"><span class="text-slate-500">Harga Jual</span><span class="font-extrabold text-slate-900">${formatIDR(product.sell_price)}</span></div>
-          <div class="flex justify-between"><span class="text-slate-500">Harga Modal</span><span class="font-bold text-slate-700">${formatIDR(product.base_price)}</span></div>
-          <div class="flex justify-between"><span class="text-slate-500">Keuntungan</span><span class="font-extrabold text-emerald-700">${formatIDR(profit)}</span></div>
+        <div class="max-h-[66vh] overflow-y-auto">
+          <div class="divide-y divide-dashed divide-slate-200 text-sm">
+            <div class="px-5 py-4 flex items-center justify-between gap-4"><span class="text-slate-500">Pilihan Produk</span><strong class="text-right text-slate-800">${escapeHtml(product.name)}</strong></div>
+            <div class="px-5 py-4 flex items-center justify-between gap-4"><span class="text-slate-500">ID Tujuan</span><strong class="font-mono text-right text-slate-800">${escapeHtml(targetDisplay)}</strong></div>
+            ${formState.gameUsername.trim() ? `<div class="px-5 py-4 flex items-center justify-between gap-4"><span class="text-slate-500">Nama / Detail</span><strong class="text-right text-slate-800">${escapeHtml(formState.gameUsername.trim())}</strong></div>` : ''}
+            <div class="px-5 py-4 flex items-center justify-between gap-4"><span class="text-slate-500">Pembeli</span><strong class="text-right text-slate-800">${escapeHtml(effectiveName)}</strong></div>
+          </div>
+          <div class="mx-5 my-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p class="text-xs font-extrabold text-slate-800 mb-3">Metode Pembayaran</p>
+            <div class="flex items-center gap-3 rounded-xl bg-white border border-slate-200 p-3">
+              <span class="w-10 h-10 rounded-xl bg-teal-50 text-[#16877f] flex items-center justify-center text-xl">▣</span>
+              <div class="flex-1"><p class="font-bold text-sm text-slate-900">Saldo Supplier</p><p class="text-[10px] text-slate-500">Saldo operasional PPOB admin</p></div>
+              <span class="text-slate-400 text-xl">›</span>
+            </div>
+            <p class="mt-3 text-[10px] text-slate-500">Harga modal: ${formatIDR(product.base_price)} · Estimasi keuntungan: ${formatIDR(profit)}</p>
+          </div>
         </div>
-
-        <div class="grid grid-cols-2 gap-2.5">
-          <button type="button" data-submit-status="Menunggu"
-            class="ord-submit-btn h-12 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md">
-            Simpan (Menunggu)
-          </button>
-          <button type="button" data-submit-status="Diproses"
-            class="ord-submit-btn h-12 rounded-xl bg-primary hover:bg-primaryDark text-white text-xs font-bold shadow-md shadow-primary/25">
-            Simpan & Mulai Proses
-          </button>
+        <div class="border-t border-slate-100 bg-white px-5 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))] flex items-center gap-4">
+          <div class="flex-1 min-w-0"><p class="text-[10px] text-slate-500">Total Pembayaran</p><p class="text-xl font-extrabold text-[#16877f] tabular-nums">${formatIDR(product.sell_price)}</p></div>
+          <button type="button" id="ord-confirm-buy" class="h-12 px-6 rounded-xl bg-[#16877f] active:bg-[#116d67] text-white text-xs font-extrabold tracking-wide shadow-lg shadow-teal-900/15">BUAT PESANAN</button>
         </div>
-      </div>
+      </section>
     </div>`;
 
   document.getElementById('ord-modal-close').addEventListener('click', closeConfirmModal);
-
-  root.querySelectorAll('.ord-submit-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const initStatus = btn.dataset.submitStatus;
-      root.querySelectorAll('.ord-submit-btn').forEach((b) => (b.disabled = true));
-      btn.textContent = 'Menyimpan...';
-
-      try {
-        const trx = await createOrder({
-          idempotency_key: formState.idempotencyKey,
-          customer_name: effectiveName,
-          customer_wa: formState.customerWa,
-          game_id: game.id,
-          product_id: product.id,
-          target_user_id: formState.targetUserId,
-          target_zone_id: formState.targetZoneId,
-          notes: formState.notes,
-          save_customer: formState.saveCustomer,
-          allow_duplicate: formState.allowDuplicate,
-          initial_status: initStatus,
-          supplier_code: formState.supplierCode || null
-        });
-
-        closeConfirmModal();
-        resetFormValues();
-        showToast(`Pesanan ${trx.invoice_code} tersimpan!`, 'success');
-        if (typeof formState.onOrderCreated === 'function') {
-          formState.onOrderCreated(trx);
-        }
-      } catch (err) {
-        closeConfirmModal();
-        if (err.code === 'DUPLICATE_ORDER') {
-          formState.duplicateInvoice = err.duplicateInvoice || 'Sebelumnya';
-          formState.allowDuplicate = false;
-          renderOrderForm();
-          showToast('Terdeteksi pesanan serupa! Periksa kotak peringatan.', 'warning');
-        } else {
-          showToast(err?.message || 'Gagal menyimpan pesanan.', 'error');
-        }
+  document.getElementById('ord-modal-backdrop').addEventListener('click', (event) => {
+    if (event.target.id === 'ord-modal-backdrop') closeConfirmModal();
+  });
+  document.getElementById('ord-confirm-buy').addEventListener('click', async (event) => {
+    const btn = event.currentTarget;
+    btn.disabled = true;
+    btn.textContent = 'MENYIMPAN...';
+    try {
+      const trx = await createOrder({
+        idempotency_key: formState.idempotencyKey,
+        customer_name: effectiveName,
+        customer_wa: formState.customerWa,
+        game_id: game.id,
+        product_id: product.id,
+        target_user_id: formState.targetUserId,
+        target_zone_id: formState.targetZoneId,
+        notes: formState.notes,
+        save_customer: formState.saveCustomer,
+        allow_duplicate: formState.allowDuplicate,
+        initial_status: 'Diproses',
+        supplier_code: formState.supplierCode || null
+      });
+      closeConfirmModal();
+      resetFormValues();
+      showToast(`Pesanan ${trx.invoice_code} tersimpan!`, 'success');
+      if (typeof formState.onOrderCreated === 'function') formState.onOrderCreated(trx);
+    } catch (err) {
+      closeConfirmModal();
+      if (err.code === 'DUPLICATE_ORDER') {
+        formState.duplicateInvoice = err.duplicateInvoice || 'Sebelumnya';
+        formState.allowDuplicate = false;
+        renderOrderForm();
+        showToast('Terdeteksi pesanan serupa! Periksa peringatannya.', 'warning');
+      } else {
+        showToast(err?.message || 'Gagal menyimpan pesanan.', 'error');
       }
-    });
+    }
   });
 }
 
@@ -618,6 +612,7 @@ function bindOrderFormEvents() {
       formState.duplicateInvoice = '';
       formState.allowDuplicate = false;
       renderOrderForm();
+      openConfirmOrderModal();
     });
   });
 

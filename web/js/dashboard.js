@@ -115,6 +115,8 @@ async function loadSupplierBalance(force = false) {
     if (!Number.isFinite(bal)) throw new Error('Respons saldo tidak valid.');
     const low = bal < LOW_BALANCE_WARNING;
     valEl.textContent = formatIDR(bal);
+    const homeBalance = document.getElementById('supplier-balance-home');
+    if (homeBalance) homeBalance.textContent = formatIDR(bal);
     valEl.className = `text-lg font-extrabold tabular-nums ${low ? 'text-red-600' : 'text-slate-900'}`;
     noteEl.textContent = low
       ? `Saldo menipis (di bawah ${formatIDR(LOW_BALANCE_WARNING)}). Segera deposit.`
@@ -123,6 +125,8 @@ async function loadSupplierBalance(force = false) {
     balanceFetchedAt = Date.now();
   } catch (err) {
     valEl.textContent = '\u2014';
+    const homeBalance = document.getElementById('supplier-balance-home');
+    if (homeBalance) homeBalance.textContent = 'Tidak tersedia';
     valEl.className = 'text-lg font-extrabold tabular-nums text-slate-400';
     noteEl.textContent = err?.message || 'Gagal memuat saldo.';
     noteEl.className = 'text-[10px] text-amber-700';

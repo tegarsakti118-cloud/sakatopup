@@ -12,10 +12,16 @@ import {
   saveCustomer
 } from './catalog-api.js';
 import { escapeHtml, formatIDR, formatWIB, showToast } from './utils.js';
+import { fetchDigiflazzPrepaidCatalog } from './digiflazz-ppob-api.js';
 
 const state = {
-  subTab: 'games',
+  subTab: 'ppob',
   gameFilter: 'all',
+  ppobProducts: [],
+  ppobCategory: 'all',
+  ppobQuery: '',
+  ppobLoadedAt: null,
+  ppobLoading: false,
   customerQuery: '',
   games: [],
   products: [],
@@ -41,12 +47,13 @@ function closeModal() {
 
 function renderSubTabs() {
   const tabs = [
+    { key: 'ppob', label: `PPOB (${state.ppobProducts.length})` },
     { key: 'games', label: `Game (${state.games.length})` },
     { key: 'products', label: `Produk (${state.products.length})` },
     { key: 'customers', label: `Pelanggan (${state.customers.length})` }
   ];
   return `
-    <div class="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-200/70">
+    <div class="grid grid-cols-4 gap-1 p-1 rounded-xl bg-slate-200/70">
       ${tabs
         .map(
           (t) => `
@@ -247,6 +254,72 @@ function renderCustomersTab() {
     </div>`;
 }
 
+function normalizePpobCategory(value) {
+  const v = String(value || '').toLowerCase();
+  if (v.includes('pln') || v.includes('token')) return 'pln';
+  if (v.includes('data') || v.includes('internet')) return 'data';
+  if (v.includes('pulsa') || v.includes('telepon')) return 'pulsa';
+  if (v.includes('e-money') || v.includes('ewallet') || v.includes('e-wallet') || v.includes('uang elektronik')) return 'ewallet';
+  if (v.includes('game')) return 'game';
+  return 'lainnya';
+}
+
+function renderPpobTab() {
+  const categories = [
+    ['all', 'Semua'], ['pulsa', 'Pulsa'], ['data', 'Paket Data'],
+    ['pln', 'Token PLN'], ['ewallet', 'E-Wallet'], ['game', 'Game'], ['lainnya', 'Lainnya']
+  ];
+  const q = state.ppobQuery.trim().toLowerCase();
+  const rows = state.ppobProducts.filter(p => {
+    const cat = normalizePpobCategory(p.category);
+    const matchesCat = state.ppobCategory === 'all' || cat === state.ppobCategory;
+    const haystack = `${p.product_name || ''} ${p.brand || ''} ${p.category || ''} ${p.buyer_sku_code || ''}`.toLowerCase();
+    return matchesCat && (!q || haystack.includes(q));
+  });
+  const cards = rows.map(p => `
+    <article class="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <p class="text-[10px] font-bold uppercase tracking-wide text-primaryDark">${escapeHtml(p.brand || p.category || 'Produk PPOB')}</p>
+          <h4 class="mt-1 text-sm font-extrabold text-slate-900">${escapeHtml(p.product_name || 'Produk tanpa nama')}</h4>
+          <p class="mt-1 text-[10px] text-slate-500">SKU: <span class="font-mono">${escapeHtml(p.buyer_sku_code || '-')}</span> · ${escapeHtml(p.type || '')}</p>
+        </div>
+        <span class="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">Tersedia</span>
+      </div>
+      <div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+        <span class="text-[10px] text-slate-500">Harga supplier</span>
+        <strong class="text-sm font-extrabold tabular-nums text-slate-900">${formatIDR(Number(p.price || 0))}</strong>
+      </div>
+      <p class="mt-2 text-[10px] leading-relaxed text-slate-400">${escapeHtml(p.desc || 'Harga dan ketersediaan mengikuti data Digiflazz.')}</p>
+    </article>`).join('');
+  return `<div class="space-y-3">
+    <div class="flex gap-2">
+      <input id="ppob-search" type="search" value="${escapeHtml(state.ppobQuery)}" placeholder="Cari produk, operator, atau SKU..." class="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-xs" />
+      <button id="ppob-refresh" type="button" class="h-11 shrink-0 rounded-xl bg-primary px-3 text-xs font-bold text-white" ${state.ppobLoading ? 'disabled' : ''}>${state.ppobLoading ? 'Memuat...' : '↻ Sinkron'}</button>
+    </div>
+    <div class="flex gap-2 overflow-x-auto pb-1">${categories.map(([key,label]) => `<button type="button" data-ppob-category="${key}" class="shrink-0 rounded-full px-3 py-2 text-[11px] font-bold ${state.ppobCategory === key ? 'bg-primary text-white' : 'bg-white text-slate-600 border border-slate-200'}">${label}</button>`).join('')}</div>
+    <div class="flex items-center justify-between"><p class="text-[11px] font-semibold text-slate-500">${rows.length} produk ditemukan</p><p class="text-[10px] text-slate-400">${state.ppobLoadedAt ? `Sinkron ${formatWIB(state.ppobLoadedAt)}` : 'Belum disinkronkan'}</p></div>
+    ${state.ppobLoading && !state.ppobProducts.length ? '<div class="rounded-2xl border bg-white p-6 text-center text-xs text-slate-500">Mengambil katalog Digiflazz...</div>' : ''}
+    ${cards || (!state.ppobLoading ? '<div class="rounded-2xl border border-slate-200 bg-white p-6 text-center text-xs text-slate-500">Tidak ada produk. Tekan Sinkron untuk mengambil katalog Digiflazz.</div>' : '')}
+    <p class="rounded-xl bg-amber-50 px-3 py-2 text-[10px] leading-relaxed text-amber-800">Katalog ini hanya menampilkan harga supplier. Tombol pembelian belum diaktifkan sampai alur transaksi, validasi tujuan, dan pengamanan saldo selesai.</p>
+  </div>`;
+}
+
+async function syncPpobCatalog() {
+  state.ppobLoading = true;
+  renderCatalogPage();
+  try {
+    state.ppobProducts = await fetchDigiflazzPrepaidCatalog();
+    state.ppobLoadedAt = new Date().toISOString();
+    showToast(`Katalog Digiflazz diperbarui: ${state.ppobProducts.length} produk.`, 'success');
+  } catch (err) {
+    showToast(err?.message || 'Gagal sinkron katalog Digiflazz.', 'error');
+  } finally {
+    state.ppobLoading = false;
+    renderCatalogPage();
+  }
+}
+
 function renderCatalogPage() {
   const container = document.getElementById('page-catalog');
   if (!container) return;
@@ -254,6 +327,8 @@ function renderCatalogPage() {
   let bodyHtml = '';
   if (state.loading && state.games.length === 0) {
     bodyHtml = '<div class="bg-white rounded-2xl border border-slate-200 p-6 text-center text-xs text-slate-400">Memuat data katalog...</div>';
+  } else if (state.subTab === 'ppob') {
+    bodyHtml = renderPpobTab();
   } else if (state.subTab === 'games') {
     bodyHtml = renderGamesTab();
   } else if (state.subTab === 'products') {
@@ -612,6 +687,18 @@ function bindPageEvents() {
       renderCatalogPage();
     });
   });
+  document.querySelectorAll('[data-ppob-category]').forEach(btn => btn.addEventListener('click', () => {
+    state.ppobCategory = btn.dataset.ppobCategory;
+    renderCatalogPage();
+  }));
+  document.getElementById('ppob-refresh')?.addEventListener('click', syncPpobCatalog);
+  document.getElementById('ppob-search')?.addEventListener('input', e => {
+    state.ppobQuery = e.target.value;
+    const pos = e.target.selectionStart;
+    renderCatalogPage();
+    const input = document.getElementById('ppob-search');
+    input?.focus(); input?.setSelectionRange(pos, pos);
+  });
 
   document.getElementById('btn-add-game')?.addEventListener('click', () => openGameModal(null));
   document.getElementById('btn-add-product')?.addEventListener('click', () => openProductModal(null));
@@ -694,6 +781,10 @@ export async function loadCatalog() {
     state.products = data.products;
     state.suppliers = data.suppliers;
     state.customers = data.customers;
+    if (state.subTab === 'ppob' && !state.ppobProducts.length) {
+      try { state.ppobProducts = await fetchDigiflazzPrepaidCatalog(); state.ppobLoadedAt = new Date().toISOString(); }
+      catch (ppobErr) { showToast(ppobErr?.message || 'Katalog Digiflazz belum tersedia.', 'error'); }
+    }
   } catch (err) {
     showToast(err?.message || 'Gagal memuat data katalog.', 'error');
   } finally {

@@ -95,6 +95,10 @@ async function bootstrap() {
   document.querySelectorAll('.nav-btn').forEach((btn) => {
     btn.addEventListener('click', () => navigateTo(btn.dataset.page));
   });
+  document.getElementById('page-dashboard')?.addEventListener('click', (e) => {
+    const action = e.target.closest('[data-home-action]')?.dataset.homeAction;
+    if (action) navigateTo(action);
+  });
   document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
   document.getElementById('printer-status-pill')?.addEventListener('click', () => navigateTo('settings'));
 

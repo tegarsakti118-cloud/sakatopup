@@ -108,25 +108,25 @@
   </section>
 
   <div id="app-shell" class="hidden min-h-screen pb-24">
-    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200/80">
+    <header class="sticky top-0 z-30 bg-[#168780] text-white shadow-sm">
       <div class="max-w-lg mx-auto px-4 h-14 flex items-center justify-between gap-2">
         <div class="flex items-center gap-2.5 min-w-0">
           <div class="w-8 h-8 shrink-0"><svg class="w-full h-full" viewBox="0 0 108 108" aria-label="SakaPay"><use href="#sakapay-logo"/></svg></div>
           <div class="truncate">
-            <h2 id="topbar-title" class="text-sm font-extrabold text-slate-900 leading-tight truncate">Dashboard Admin</h2>
-            <p class="text-[10px] font-semibold text-primaryDark leading-tight">SakaPay Internal</p>
+            <h2 id="topbar-title" class="text-lg font-extrabold text-white leading-tight truncate">Hai, SakaPay</h2>
+            <p class="text-[10px] font-semibold text-white/75 leading-tight">ADMIN PPOB</p>
           </div>
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
           <button type="button" id="printer-status-pill"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-600 active:scale-95 transition">
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/15 border border-white/20 text-[11px] font-semibold text-white active:scale-95 transition">
             <span class="w-2 h-2 rounded-full bg-slate-400"></span>
             <span>Printer 58mm</span>
           </button>
 
           <button type="button" id="logout-btn" title="Keluar"
-            class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 flex items-center justify-center transition">
+            class="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
@@ -137,6 +137,51 @@
 
     <main id="main-content" class="max-w-lg mx-auto px-4 pt-4 space-y-4">
       <section id="page-dashboard" class="space-y-4">
+        <section class="home-wallet-card -mx-4 -mt-4 rounded-b-[28px] bg-[#168780] px-4 pb-5 pt-2 text-white shadow-sm">
+          <div class="rounded-2xl bg-white p-4 text-slate-800 shadow-sm">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-semibold text-slate-500">Saldo Supplier</p>
+                <p id="supplier-balance-home" class="mt-1 text-2xl font-extrabold tabular-nums text-[#168780]">Memuat...</p>
+                <p class="mt-1 text-[10px] text-slate-400">Saldo Digiflazz • akun admin</p>
+              </div>
+              <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400 text-3xl">▣</div>
+            </div>
+            <div class="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+              <button type="button" data-home-action="new-order" class="home-wallet-action"><span>＋</span><b>Buat Order</b></button>
+              <button type="button" data-home-action="orders" class="home-wallet-action"><span>▤</span><b>Riwayat</b></button>
+              <button type="button" data-home-action="settings" class="home-wallet-action"><span>⚙</span><b>Pengaturan</b></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="home-promo-card">
+          <div class="relative z-10 max-w-[75%]">
+            <p class="text-[10px] font-bold uppercase tracking-[.18em] text-white/75">SAKAPAY PPOB</p>
+            <h3 class="mt-1 text-xl font-extrabold leading-tight text-white">Semua transaksi<br/>dalam satu tempat.</h3>
+            <p class="mt-2 text-[11px] text-white/80">Panel operasional untuk admin SakaPay</p>
+          </div>
+          <div class="home-promo-orb" aria-hidden="true">SP</div>
+        </section>
+
+        <section class="rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+          <div class="mb-3 flex items-center justify-between">
+            <h3 class="text-sm font-extrabold text-slate-800">Layanan PPOB</h3>
+            <span class="text-[10px] font-semibold text-slate-400">Menu layanan</span>
+          </div>
+          <div class="grid grid-cols-4 gap-y-4">
+            <button type="button" data-home-action="catalog" class="home-service"><span class="service-icon">▣</span><b>Pulsa</b></button>
+            <button type="button" data-home-action="catalog" class="home-service"><span class="service-icon">▤</span><b>Data</b></button>
+            <button type="button" data-home-action="catalog" class="home-service"><span class="service-icon">▰</span><b>e-Wallet</b></button>
+            <button type="button" data-home-action="catalog" class="home-service"><span class="service-icon">ϟ</span><b>Token PLN</b></button>
+            <button type="button" data-home-action="catalog" class="home-service"><span class="service-icon">▧</span><b>Game</b></button>
+            <button type="button" data-home-action="catalog" class="home-service"><span class="service-icon">▦</span><b>Tagihan</b></button>
+            <button type="button" data-home-action="catalog" class="home-service"><span class="service-icon">▣</span><b>Voucher</b></button>
+            <button type="button" data-home-action="catalog" class="home-service"><span class="service-icon">•••</span><b>Lainnya</b></button>
+          </div>
+          <p class="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-[10px] leading-relaxed text-amber-800">Menu kategori ini merupakan tampilan awal. Katalog dan transaksi PPOB per kategori akan diaktifkan pada fase integrasi produk.</p>
+        </section>
+
         <div class="flex items-center justify-between gap-2">
           <div class="inline-flex p-1 rounded-xl bg-slate-200/70 flex-1">
             <button type="button" data-period="daily" class="period-btn flex-1 py-2 rounded-lg text-xs font-bold transition bg-white text-primaryDark shadow-sm">Hari Ini</button>
