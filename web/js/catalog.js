@@ -12,7 +12,8 @@ import {
   saveCustomer
 } from './catalog-api.js';
 import { escapeHtml, formatIDR, formatWIB, showToast } from './utils.js';
-import { fetchDigiflazzPrepaidCatalog } from './digiflazz-ppob-api.js';
+import { fetchDigiflazzPrepaidCatalog, inquiryPlnCustomer } from './digiflazz-ppob-api.js';
+import { submitDigiflazzPurchase } from './digiflazz-transaction-api.js';
 
 const state = {
   subTab: 'ppob',
@@ -291,6 +292,9 @@ function renderPpobTab() {
         <strong class="text-sm font-extrabold tabular-nums text-slate-900">${formatIDR(Number(p.price || 0))}</strong>
       </div>
       <p class="mt-2 text-[10px] leading-relaxed text-slate-400">${escapeHtml(p.desc || 'Harga dan ketersediaan mengikuti data Digiflazz.')}</p>
+      <button type="button" data-ppob-buy="${escapeHtml(p.buyer_sku_code || '')}"
+        class="mt-3 w-full rounded-xl bg-primary px-3 py-2.5 text-xs font-extrabold text-white disabled:opacity-50"
+        ${!p.buyer_sku_code ? 'disabled' : ''}>Pilih Nominal</button>
     </article>`).join('');
   return `<div class="space-y-3">
     <div class="flex gap-2">
@@ -318,6 +322,108 @@ async function syncPpobCatalog() {
     state.ppobLoading = false;
     renderCatalogPage();
   }
+}
+
+
+function closePpobPurchaseModal() {
+  document.getElementById('ppob-purchase-modal')?.remove();
+}
+
+function openPpobPurchaseModal(product) {
+  closePpobPurchaseModal();
+  const isPln = String(product.category || '').toLowerCase().includes('pln');
+  const root = document.createElement('div');
+  root.id = 'ppob-purchase-modal';
+  root.className = 'fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/60 p-0 sm:items-center sm:p-4';
+  root.innerHTML = `
+    <section class="w-full max-w-md rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl">
+      <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200"></div>
+      <div class="flex items-start justify-between gap-3">
+        <div><p class="text-[10px] font-bold uppercase tracking-wider text-primaryDark">PEMBELIAN PPOB</p>
+        <h3 class="mt-1 text-lg font-extrabold text-slate-900">${escapeHtml(product.product_name || 'Produk PPOB')}</h3>
+        <p class="mt-1 text-xs text-slate-500">SKU: ${escapeHtml(product.buyer_sku_code)}</p></div>
+        <button type="button" id="ppob-modal-close" class="rounded-full bg-slate-100 px-3 py-1 text-lg">×</button>
+      </div>
+      <div class="mt-4 rounded-2xl bg-slate-50 p-3">
+        <div class="flex justify-between text-xs"><span class="text-slate-500">Harga supplier</span><strong>${formatIDR(Number(product.price || 0))}</strong></div>
+      </div>
+      <label class="mt-4 block text-xs font-bold text-slate-700">${isPln ? 'ID Pelanggan PLN' : 'Nomor Tujuan'}</label>
+      <input id="ppob-target-number" inputmode="numeric" autocomplete="off" maxlength="30"
+        placeholder="${isPln ? 'Masukkan 10-13 digit ID pelanggan' : 'Masukkan nomor tujuan'}"
+        class="mt-2 h-12 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-primary" />
+      <p id="ppob-inquiry-note" class="mt-2 text-[11px] text-slate-500">${isPln ? 'Data nama dan daya akan dicek otomatis sebelum konfirmasi.' : 'Pastikan nomor tujuan sudah benar.'}</p>
+      <div id="ppob-inquiry-result" class="mt-3 hidden rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs"></div>
+      <div id="ppob-confirm-area" class="mt-4 hidden space-y-3">
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900">
+          Transaksi akan dikirim ke Digiflazz dan dapat mengurangi saldo supplier. Periksa kembali data tujuan sebelum melanjutkan.
+        </div>
+        <button type="button" id="ppob-confirm-buy" class="w-full rounded-xl bg-primary px-4 py-3 text-sm font-extrabold text-white">BELI SEKARANG</button>
+      </div>
+      <button type="button" id="ppob-continue" class="mt-4 w-full rounded-xl bg-primary px-4 py-3 text-sm font-extrabold text-white">${isPln ? 'CEK PELANGGAN' : 'LANJUTKAN'}</button>
+    </section>`;
+  document.body.appendChild(root);
+  let inquiry = null;
+  let busy = false;
+  const target = root.querySelector('#ppob-target-number');
+  const note = root.querySelector('#ppob-inquiry-note');
+  const result = root.querySelector('#ppob-inquiry-result');
+  const confirmArea = root.querySelector('#ppob-confirm-area');
+  const continueBtn = root.querySelector('#ppob-continue');
+  root.querySelector('#ppob-modal-close').addEventListener('click', closePpobPurchaseModal);
+  root.addEventListener('click', e => { if (e.target === root) closePpobPurchaseModal(); });
+  continueBtn.addEventListener('click', async () => {
+    const number = target.value.trim();
+    if (!number) { note.textContent = 'Nomor tujuan wajib diisi.'; note.className = 'mt-2 text-[11px] text-red-600'; return; }
+    if (busy) return;
+    busy = true; continueBtn.disabled = true; continueBtn.textContent = isPln ? 'MENGECEK...' : 'MEMERIKSA...';
+    try {
+      if (isPln) {
+        inquiry = await inquiryPlnCustomer(number);
+        result.innerHTML = `<p class="font-extrabold text-emerald-900">Data pelanggan ditemukan</p>
+          <p class="mt-2">Nama: <strong>${escapeHtml(inquiry.name || '-')}</strong></p>
+          <p>ID Pelanggan: <strong>${escapeHtml(inquiry.customer_no || number)}</strong></p>
+          <p>Nomor Meter: <strong>${escapeHtml(inquiry.meter_no || '-')}</strong></p>
+          <p>Tarif / Daya: <strong>${escapeHtml(inquiry.segment_power || '-')}</strong></p>`;
+        result.classList.remove('hidden');
+      } else {
+        result.innerHTML = `<p class="font-bold text-slate-800">Nomor tujuan</p><p class="mt-1 font-mono">${escapeHtml(number)}</p>`;
+        result.classList.remove('hidden');
+      }
+      confirmArea.classList.remove('hidden');
+      continueBtn.classList.add('hidden');
+    } catch (err) {
+      note.textContent = err?.message || 'Pemeriksaan gagal.';
+      note.className = 'mt-2 text-[11px] text-red-600';
+      continueBtn.disabled = false; continueBtn.textContent = isPln ? 'COBA CEK LAGI' : 'COBA LAGI';
+    } finally { busy = false; }
+  });
+  root.querySelector('#ppob-confirm-buy').addEventListener('click', async () => {
+    if (busy) return;
+    if (!confirm('Kirim transaksi sungguhan ke Digiflazz? Pastikan SKU dan nomor tujuan benar.')) return;
+    busy = true;
+    const btn = root.querySelector('#ppob-confirm-buy');
+    btn.disabled = true; btn.textContent = 'MENGIRIM TRANSAKSI...';
+    try {
+      const response = await submitDigiflazzPurchase({
+        buyer_sku_code: product.buyer_sku_code,
+        customer_no: target.value.trim(),
+        customer_name: inquiry?.name || null
+      });
+      result.innerHTML = `<p class="font-extrabold">Status: ${escapeHtml(response.status || 'Pending')}</p>
+        <p class="mt-1">Ref ID: <strong>${escapeHtml(response.ref_id || '-')}</strong></p>
+        <p class="mt-1">${escapeHtml(response.message || '')}</p>
+        ${response.serial_number ? `<p class="mt-2 break-all">SN / Token: <strong>${escapeHtml(response.serial_number)}</strong></p>` : ''}`;
+      confirmArea.classList.add('hidden');
+      note.textContent = 'Respons supplier sudah diterima. Jika Pending, jangan kirim ulang sebelum status diperiksa.';
+      note.className = 'mt-3 text-[11px] text-amber-700';
+      showToast(`Transaksi ${response.status || 'Pending'} · ${response.ref_id || ''}`, response.status === 'Sukses' ? 'success' : 'warning');
+      btn.remove();
+    } catch (err) {
+      note.textContent = err?.message || 'Transaksi gagal dikirim. Periksa riwayat sebelum mencoba ulang.';
+      note.className = 'mt-3 text-[11px] text-red-600';
+      btn.disabled = false; btn.textContent = 'COBA LAGI (CEK STATUS DULU)';
+    } finally { busy = false; }
+  });
 }
 
 function renderCatalogPage() {
@@ -692,6 +798,10 @@ function bindPageEvents() {
     renderCatalogPage();
   }));
   document.getElementById('ppob-refresh')?.addEventListener('click', syncPpobCatalog);
+  document.querySelectorAll('[data-ppob-buy]').forEach(btn => btn.addEventListener('click', () => {
+    const product = state.ppobProducts.find(p => p.buyer_sku_code === btn.dataset.ppobBuy);
+    if (product) openPpobPurchaseModal(product);
+  }));
   document.getElementById('ppob-search')?.addEventListener('input', e => {
     state.ppobQuery = e.target.value;
     const pos = e.target.selectionStart;

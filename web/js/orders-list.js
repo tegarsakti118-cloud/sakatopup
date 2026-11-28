@@ -17,6 +17,8 @@ import {
 } from './receipt.js';
 import { downloadCsvFile } from './settings.js';
 import { escapeHtml, formatIDR, formatWIB, getStatusBadge, showToast } from './utils.js';
+import { supabase } from './supabase.js';
+import { checkDigiflazzTransactionStatus } from './digiflazz-status-api.js';
 
 const listState = {
   search: '',
@@ -27,7 +29,10 @@ const listState = {
   games: [],
   rows: [],
   loading: false,
-  onChanged: null
+  onChanged: null,
+  ppobRows: [],
+  ppobLoading: false,
+  ppobSearch: ''
 };
 
 let searchTimer = null;
@@ -171,6 +176,74 @@ function computeFilteredSummary(rows) {
   };
 }
 
+function renderPpobHistoryPanel() {
+  const rows = listState.ppobRows.filter((t) => {
+    const q = listState.ppobSearch.trim().toLowerCase();
+    return !q || [t.ref_id, t.product_name, t.customer_no, t.customer_name, t.buyer_sku_code]
+      .some((v) => String(v || '').toLowerCase().includes(q));
+  });
+  const cards = rows.length ? rows.map((t) => {
+    const colors = t.status === 'Sukses' ? 'bg-emerald-100 text-emerald-800' : t.status === 'Gagal' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800';
+    return `<button type="button" data-ppob-detail="${escapeHtml(t.id)}" class="w-full text-left rounded-xl border border-slate-200 bg-white p-3 space-y-1.5">
+      <div class="flex items-center justify-between gap-2"><span class="font-mono text-[10px] text-slate-500">${escapeHtml(t.ref_id)}</span><span class="rounded-full px-2 py-0.5 text-[10px] font-bold ${colors}">${escapeHtml(t.status)}</span></div>
+      <div class="flex items-start justify-between gap-2"><div class="min-w-0"><p class="text-xs font-extrabold text-slate-900 truncate">${escapeHtml(t.product_name)}</p><p class="text-[11px] text-slate-500">${escapeHtml(t.customer_name || t.customer_no)} · ${escapeHtml(t.customer_no)}</p></div><b class="shrink-0 text-xs">${formatIDR(t.supplier_price)}</b></div>
+      <div class="flex justify-between text-[10px] text-slate-400"><span>${formatWIB(t.created_at)}</span><span class="font-bold text-primaryDark">Detail →</span></div>
+    </button>`;
+  }).join('') : `<div class="rounded-xl bg-white border border-slate-200 p-5 text-center text-xs text-slate-400">${listState.ppobLoading ? 'Memuat transaksi PPOB...' : 'Belum ada transaksi PPOB.'}</div>`;
+  return `<section class="rounded-2xl border border-primary/20 bg-primarySoft/40 p-3 space-y-3">
+    <div class="flex items-center justify-between gap-2"><div><h3 class="text-sm font-extrabold text-slate-900">Riwayat PPOB Digiflazz</h3><p class="text-[10px] text-slate-500">${rows.length} transaksi ditampilkan</p></div><button type="button" id="ppob-history-refresh" class="rounded-lg bg-primary px-3 py-2 text-[10px] font-bold text-white" ${listState.ppobLoading ? 'disabled' : ''}>${listState.ppobLoading ? 'Memuat...' : '↻ Refresh'}</button></div>
+    <input id="ppob-history-search" type="search" value="${escapeHtml(listState.ppobSearch)}" placeholder="Cari ref ID, produk, atau nomor tujuan..." class="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs" />
+    <div class="space-y-2">${cards}</div>
+  </section>`;
+}
+
+async function loadPpobHistory() {
+  if (!supabase) return;
+  listState.ppobLoading = true;
+  const container = document.getElementById('page-orders');
+  if (container && !container.querySelector('#ppob-history-refresh')) renderOrdersPage();
+  try {
+    const { data, error } = await supabase.from('ppob_transactions')
+      .select('id,ref_id,buyer_sku_code,product_name,category,brand,customer_no,customer_name,segment_power,supplier_price,status,supplier_message,supplier_rc,serial_number,supplier_balance,created_at,updated_at,completed_at,last_status_check_at')
+      .order('created_at', { ascending: false }).limit(100);
+    if (error) throw error;
+    listState.ppobRows = data || [];
+  } catch (err) {
+    showToast(err?.message || 'Gagal memuat riwayat PPOB. Pastikan SQL Fase 5A sudah dijalankan.', 'error');
+  } finally {
+    listState.ppobLoading = false;
+    renderOrdersPage();
+  }
+}
+
+function openPpobDetail(id) {
+  const trx = listState.ppobRows.find((row) => row.id === id);
+  if (!trx) return;
+  const root = getDetailModalRoot();
+  const statusColor = trx.status === 'Sukses' ? 'text-emerald-700' : trx.status === 'Gagal' ? 'text-red-700' : 'text-amber-700';
+  root.innerHTML = `<div class="fixed inset-0 z-[75] bg-slate-900/60 flex items-end sm:items-center justify-center"><div class="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white p-5 space-y-3">
+    <div class="flex items-center justify-between"><div><p class="text-[10px] text-slate-400">REF ID</p><p class="font-mono text-xs font-extrabold">${escapeHtml(trx.ref_id)}</p></div><button id="ppob-detail-close" class="rounded-full bg-slate-100 px-3 py-2">✕</button></div>
+    <div class="rounded-xl bg-slate-50 p-3 space-y-2 text-xs"><div class="flex justify-between gap-2"><span>Produk</span><b class="text-right">${escapeHtml(trx.product_name)}</b></div><div class="flex justify-between gap-2"><span>Nomor tujuan</span><b class="font-mono">${escapeHtml(trx.customer_no)}</b></div><div class="flex justify-between gap-2"><span>Nama pelanggan</span><b>${escapeHtml(trx.customer_name || '-')}</b></div><div class="flex justify-between gap-2"><span>Daya / Segmen</span><b>${escapeHtml(trx.segment_power || '-')}</b></div><div class="flex justify-between gap-2"><span>Harga supplier</span><b>${formatIDR(trx.supplier_price)}</b></div><div class="flex justify-between gap-2"><span>Status</span><b class="${statusColor}">${escapeHtml(trx.status)}</b></div><div class="flex justify-between gap-2"><span>Pesan supplier</span><b class="text-right">${escapeHtml(trx.supplier_message || '-')}</b></div><div class="flex justify-between gap-2"><span>SN / Token</span><b class="font-mono text-right break-all">${escapeHtml(trx.serial_number || '-')}</b></div><div class="flex justify-between gap-2"><span>Waktu</span><b>${formatWIB(trx.created_at)}</b></div></div>
+    ${['Pending','Menunggu'].includes(trx.status) ? `<button id="ppob-check-status" class="w-full rounded-xl bg-primary px-4 py-3 text-xs font-extrabold text-white">CEK STATUS DIGIFLAZZ</button><p class="text-[10px] text-slate-400 text-center">Cek ulang maksimal sekali per 60 detik.</p>` : ''}
+  </div></div>`;
+  document.getElementById('ppob-detail-close').addEventListener('click', closeDetailModal);
+  document.getElementById('ppob-check-status')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true; btn.textContent = 'MENGECEK STATUS...';
+    try {
+      const result = await checkDigiflazzTransactionStatus(trx.ref_id);
+      showToast(`Status ${trx.ref_id}: ${result.status || 'diperbarui'}`, 'success');
+      await loadPpobHistory();
+      closeDetailModal();
+      const updated = listState.ppobRows.find((row) => row.id === trx.id);
+      if (updated) openPpobDetail(updated.id);
+    } catch (err) {
+      showToast(err?.message || 'Gagal cek status. Tunggu sesuai batas waktu lalu coba lagi.', 'error');
+      btn.disabled = false; btn.textContent = 'CEK STATUS DIGIFLAZZ';
+    }
+  });
+}
+
 function renderOrdersPage() {
   const container = document.getElementById('page-orders');
   if (!container) return;
@@ -241,6 +314,7 @@ function renderOrdersPage() {
 
   container.innerHTML = `
     <div class="space-y-3">
+      ${renderPpobHistoryPanel()}
       <div class="flex gap-2">
         <input id="ord-list-search" type="search" value="${escapeHtml(listState.search)}"
           placeholder="Cari Invoice, Nama, User ID, atau No WA..."
@@ -294,6 +368,15 @@ function renderOrdersPage() {
 }
 
 function bindOrdersPageEvents() {
+  document.getElementById('ppob-history-refresh')?.addEventListener('click', loadPpobHistory);
+  document.getElementById('ppob-history-search')?.addEventListener('input', (e) => {
+    listState.ppobSearch = e.target.value;
+    const pos = e.target.selectionStart;
+    renderOrdersPage();
+    const next = document.getElementById('ppob-history-search');
+    next?.focus(); next?.setSelectionRange(pos, pos);
+  });
+  document.querySelectorAll('[data-ppob-detail]').forEach((btn) => btn.addEventListener('click', () => openPpobDetail(btn.dataset.ppobDetail)));
   const searchEl = document.getElementById('ord-list-search');
   if (searchEl) {
     searchEl.addEventListener('input', (e) => {
@@ -696,6 +779,7 @@ export async function loadOrdersList(keepFocus = false) {
   } finally {
     listState.loading = false;
     renderOrdersPage();
+    loadPpobHistory();
     if (keepFocus) {
       const el = document.getElementById('ord-list-search');
       if (el) {
